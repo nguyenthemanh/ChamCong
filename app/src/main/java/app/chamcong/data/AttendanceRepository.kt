@@ -3,6 +3,7 @@ package app.chamcong.data
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -28,6 +29,12 @@ class AttendanceRepository(private val context: Context) {
     private val languageKey = stringPreferencesKey("language")
     private val sheetLanguageKey = stringPreferencesKey("sheet_language")
     private val sheetTitleKey = stringPreferencesKey("sheet_title_custom")
+    private val setupDoneKey = booleanPreferencesKey("setup_done")
+
+    /** False until first-run setup form is completed. */
+    val setupDone: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[setupDoneKey] ?: false
+    }
 
     val settings: Flow<PaySettings> = context.dataStore.data.map { prefs ->
         val defaults = PaySettings()
@@ -99,11 +106,19 @@ class AttendanceRepository(private val context: Context) {
             prefs[otKey] = settings.overtimeHourYen.coerceAtLeast(0L)
             prefs[flagBonusKey] = settings.flagBonusYen.coerceAtLeast(0L)
             prefs[deductionKey] = settings.monthlyDeductionYen.coerceAtLeast(0L)
-            prefs[flagOnKey] = settings.flagLabelOn.trim().ifBlank { d.flagLabelOn }
-            prefs[flagOffKey] = settings.flagLabelOff.trim().ifBlank { d.flagLabelOff }
+            val region = SheetLabelFactory.of(settings.sheetLanguage)
+            prefs[flagOnKey] = settings.flagLabelOn.trim().ifBlank { region.drivingOn }
+            prefs[flagOffKey] = settings.flagLabelOff.trim().ifBlank { region.driving }
             prefs[languageKey] = settings.language.code
             prefs[sheetLanguageKey] = settings.sheetLanguage.code
             prefs[sheetTitleKey] = settings.sheetTitleCustom.trim()
+        }
+    }
+
+    suspend fun completeFirstSetup(settings: PaySettings) {
+        updateSettings(settings)
+        context.dataStore.edit { prefs ->
+            prefs[setupDoneKey] = true
         }
     }
 

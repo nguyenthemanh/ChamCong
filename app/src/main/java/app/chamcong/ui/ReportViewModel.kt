@@ -5,12 +5,16 @@ import android.content.Intent
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import app.chamcong.BuildConfig
+import app.chamcong.UpdateChecker
+import app.chamcong.UpdateInstaller
 import app.chamcong.data.AttendanceRepository
 import app.chamcong.data.CalendarFactory
 import app.chamcong.data.DayEntry
 import app.chamcong.data.MonthKey
 import app.chamcong.data.MonthSummary
 import app.chamcong.data.PaySettings
+import app.chamcong.data.SheetLabelFactory
 import app.chamcong.export.ExportFormat
 import app.chamcong.export.ReportExporter
 import app.chamcong.ui.i18n.Strings
@@ -33,13 +37,16 @@ data class ReportUiState(
     val rows: List<app.chamcong.data.DayRow> = emptyList(),
     val summary: MonthSummary = MonthSummary(0, 0, 0, 0, 0, 0),
     val settings: PaySettings = PaySettings(),
+    val setupDone: Boolean = true,
+    val setupReady: Boolean = false,
     val showSettings: Boolean = false,
     val showShare: Boolean = false,
     val exporting: Boolean = false,
+    val updateStatus: String? = null,
 )
 
 sealed interface ShareEvent {
-    data class Ready(val intent: Intent) : ShareEvent
+    data class Ready(val intent: Intent, val note: String? = null) : ShareEvent
     data class Failed(val message: String) : ShareEvent
 }
 
@@ -51,6 +58,8 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
     private val showSettings = MutableStateFlow(false)
     private val showShare = MutableStateFlow(false)
     private val exporting = MutableStateFlow(false)
+    private val updateStatus = MutableStateFlow<String?>(null)
+    private var autoUpdateStarted = false
 
     private val _shareEvents = MutableSharedFlow<ShareEvent>(extraBufferCapacity = 1)
     val shareEvents = _shareEvents.asSharedFlow()
@@ -60,12 +69,14 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
         val months: List<MonthKey>,
         val entries: Map<Int, DayEntry>,
         val settings: PaySettings,
+        val setupDone: Boolean,
     )
 
     private data class Dialogs(
         val settingsOpen: Boolean,
         val shareOpen: Boolean,
         val exporting: Boolean,
+        val updateStatus: String?,
     )
 
     val uiState: StateFlow<ReportUiState> = combine(
@@ -74,11 +85,12 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
             repo.knownMonths,
             selectedMonth.flatMapLatest { repo.entriesFor(it) },
             repo.settings,
-        ) { month, months, entries, settings ->
-            Core(month, months, entries, settings)
+            repo.setupDone,
+        ) { month, months, entries, settings, setupDone ->
+            Core(month, months, entries, settings, setupDone)
         },
-        combine(showSettings, showShare, exporting) { s, sh, e ->
-            Dialogs(s, sh, e)
+        combine(showSettings, showShare, exporting, updateStatus) { s, sh, e, u ->
+            Dialogs(s, sh, e, u)
         },
     ) { core, dialogs ->
         val rows = CalendarFactory.buildRows(core.month, core.entries, core.settings.sheetLanguage)
@@ -88,19 +100,59 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
             rows = rows,
             summary = CalendarFactory.summarize(rows, core.settings),
             settings = core.settings,
+            setupDone = core.setupDone,
+            setupReady = true,
             showSettings = dialogs.settingsOpen,
             showShare = dialogs.shareOpen,
             exporting = dialogs.exporting,
+            updateStatus = dialogs.updateStatus,
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = ReportUiState(),
+        initialValue = ReportUiState(setupDone = true, setupReady = false),
     )
 
     init {
         viewModelScope.launch {
             repo.ensureMonth(MonthKey.current())
+        }
+    }
+
+    /** Call once UI is ready — checks GitHub release, downloads & installs if newer. */
+    fun startAutoUpdateIfNeeded() {
+        if (autoUpdateStarted) return
+        autoUpdateStarted = true
+        viewModelScope.launch {
+            val strings = Strings.of(uiState.value.settings.language)
+            try {
+                updateStatus.value = strings.updateChecking
+                val result = withContext(Dispatchers.IO) {
+                    UpdateChecker.check(BuildConfig.VERSION_NAME)
+                }
+                if (!result.newer) {
+                    updateStatus.value = null
+                    return@launch
+                }
+                val apkUrl = result.apkUrl
+                if (apkUrl.isNullOrBlank()) {
+                    updateStatus.value = strings.updateNoApk.format(result.tagName)
+                    return@launch
+                }
+                updateStatus.value = strings.updateFound.format(result.tagName)
+                val app = getApplication<Application>()
+                val file = withContext(Dispatchers.IO) {
+                    UpdateChecker.downloadApk(app, apkUrl) { pct ->
+                        updateStatus.value = strings.updateDownloading.format(pct)
+                    }
+                }
+                updateStatus.value = strings.updateInstalling
+                UpdateInstaller.installApk(app, file, strings.updateNeedInstallPerm)
+                updateStatus.value = null
+            } catch (_: Exception) {
+                // Silent on launch — user can still check manually in Settings.
+                updateStatus.value = null
+            }
         }
     }
 
@@ -113,7 +165,6 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
 
     fun nextMonth() = shiftMonth(true)
 
-    /** Creates the next real calendar month after the newest known tab and opens it. */
     fun createNewMonth() {
         viewModelScope.launch {
             val newest = uiState.value.months.maxOrNull() ?: selectedMonth.value
@@ -151,6 +202,13 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun completeFirstSetup(settings: PaySettings) {
+        viewModelScope.launch {
+            repo.completeFirstSetup(settings)
+            startAutoUpdateIfNeeded()
+        }
+    }
+
     fun share(format: ExportFormat) {
         val state = uiState.value
         if (state.exporting) return
@@ -181,17 +239,17 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
                 val intent = Intent(Intent.ACTION_SEND).apply {
                     type = mime
                     putExtra(Intent.EXTRA_STREAM, uri)
+                    val sheetLabels = SheetLabelFactory.of(state.settings.sheetLanguage)
                     putExtra(
                         Intent.EXTRA_SUBJECT,
-                        "月報報告書 ${state.selectedMonth.labelJa()}",
+                        "${state.settings.resolvedSheetTitle()} ${sheetLabels.monthLabel(state.selectedMonth)}",
                     )
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
-                val chooser = Intent.createChooser(
-                    intent,
-                    Strings.of(state.settings.language).shareAs,
-                )
-                _shareEvents.emit(ShareEvent.Ready(chooser))
+                val strings = Strings.of(state.settings.language)
+                val chooser = Intent.createChooser(intent, strings.shareAs)
+                val note = if (format == ExportFormat.JPG) strings.shareJpgSaved else null
+                _shareEvents.emit(ShareEvent.Ready(chooser, note))
             } catch (e: Exception) {
                 _shareEvents.emit(
                     ShareEvent.Failed(

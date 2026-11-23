@@ -51,40 +51,93 @@ fun SettingsDialog(
     var sheetLanguage by remember(settings) { mutableStateOf(settings.sheetLanguage) }
     var sheetTitle by remember(settings) { mutableStateOf(settings.sheetTitleCustom) }
     val live = Strings.of(language)
-    val previewTitle = sheetTitle.trim().ifBlank {
-        SheetLabelFactory.of(sheetLanguage).title
+    val sheet = SheetLabelFactory.of(sheetLanguage)
+    val currency = sheet.currencySuffix
+    val previewTitle = sheetTitle.trim().ifBlank { sheet.title }
+
+    fun applyRegionExamples(from: AppLanguage, to: AppLanguage) {
+        if (from == to) return
+        val prev = SheetLabelFactory.of(from)
+        val next = SheetLabelFactory.of(to)
+        if (flagOn.isBlank() || flagOn == prev.drivingOn) flagOn = next.drivingOn
+        if (flagOff.isBlank() || flagOff == prev.driving) flagOff = next.driving
+        if (kana.isBlank() || kana == prev.nameReadingExample) kana = next.nameReadingExample
     }
 
+    fun buildSettings(): PaySettings {
+        val region = SheetLabelFactory.of(sheetLanguage)
+        return PaySettings(
+            employeeName = name,
+            employeeNameKana = kana,
+            dailyWageYen = wage.toLongOrNull() ?: settings.dailyWageYen,
+            overtimeHourYen = ot.toLongOrNull() ?: settings.overtimeHourYen,
+            flagBonusYen = flagBonus.toLongOrNull() ?: settings.flagBonusYen,
+            monthlyDeductionYen = deduction.toLongOrNull() ?: settings.monthlyDeductionYen,
+            flagLabelOn = flagOn.trim().ifBlank { region.drivingOn },
+            flagLabelOff = flagOff.trim().ifBlank { region.driving },
+            language = language,
+            sheetLanguage = sheetLanguage,
+            sheetTitleCustom = sheetTitle,
+        )
+    }
+
+    // Back / tap outside → auto-save (forget to press Lưu).
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { onSave(buildSettings()) },
         title = { Text(live.settings) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                OutlinedTextField(name, { name = it }, label = { Text(live.name) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(kana, { kana = it }, label = { Text(live.nameKana) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                NumberField(wage, { wage = it }, live.dailyWage)
-                NumberField(ot, { ot = it }, live.overtimeHour)
-                NumberField(flagBonus, { flagBonus = it }, live.flagBonus)
-                NumberField(deduction, { deduction = it }, live.monthlyDeduction)
-                Text(live.monthlyDeductionHint, color = SheetMuted, style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(live.name) },
+                    placeholder = { Text("NGUYEN VAN A") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = kana,
+                    onValueChange = { kana = it },
+                    label = { Text(live.nameKana) },
+                    placeholder = { Text(sheet.nameReadingExample) },
+                    supportingText = { Text(sheet.nameReadingExample) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                NumberField(wage, { wage = it }, live.dailyWageLabel(currency))
+                NumberField(ot, { ot = it }, live.overtimeHourLabel(currency))
+                NumberField(deduction, { deduction = it }, live.monthlyDeductionLabel(currency))
+                Text(
+                    live.monthlyDeductionHintText(currency),
+                    color = SheetMuted,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                 OutlinedTextField(
                     value = flagOn,
                     onValueChange = { flagOn = it },
                     label = { Text(live.flagLabelOn) },
-                    placeholder = { Text("運転あり") },
-                    supportingText = { Text(live.flagLabelOnHint) },
+                    placeholder = { Text(sheet.drivingOn) },
+                    supportingText = { Text(live.flagLabelOnHint.format(sheet.drivingOn)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
+                )
+                NumberField(
+                    value = flagBonus,
+                    onChange = { flagBonus = it },
+                    label = live.flagBonusLabel(currency),
+                    supporting = live.flagBonusHint.format(flagOn.ifBlank { sheet.drivingOn }),
                 )
                 OutlinedTextField(
                     value = flagOff,
                     onValueChange = { flagOff = it },
                     label = { Text(live.flagLabelOff) },
-                    placeholder = { Text("運転") },
-                    supportingText = { Text(live.flagLabelOffHint) },
+                    placeholder = { Text(sheet.driving) },
+                    supportingText = { Text(live.flagLabelOffHint.format(sheet.driving)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -99,14 +152,17 @@ fun SettingsDialog(
 
                 Text(live.sheetRegion, fontWeight = FontWeight.SemiBold)
                 Text(live.sheetRegionHint, color = SheetMuted, style = MaterialTheme.typography.bodySmall)
-                LanguageRadios(sheetLanguage) { sheetLanguage = it }
+                LanguageRadios(sheetLanguage) { next ->
+                    applyRegionExamples(sheetLanguage, next)
+                    sheetLanguage = next
+                }
 
                 OutlinedTextField(
                     value = sheetTitle,
                     onValueChange = { sheetTitle = it },
                     label = { Text(live.sheetTitle) },
-                    placeholder = { Text(SheetLabelFactory.of(sheetLanguage).title) },
-                    supportingText = { Text(live.sheetTitleHint) },
+                    placeholder = { Text(sheet.title) },
+                    supportingText = { Text(live.sheetTitleHint.format(sheet.title)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -121,38 +177,27 @@ fun SettingsDialog(
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = {
-                    onSave(
-                        PaySettings(
-                            employeeName = name,
-                            employeeNameKana = kana,
-                            dailyWageYen = wage.toLongOrNull() ?: settings.dailyWageYen,
-                            overtimeHourYen = ot.toLongOrNull() ?: settings.overtimeHourYen,
-                            flagBonusYen = flagBonus.toLongOrNull() ?: settings.flagBonusYen,
-                            monthlyDeductionYen = deduction.toLongOrNull() ?: settings.monthlyDeductionYen,
-                            flagLabelOn = flagOn,
-                            flagLabelOff = flagOff,
-                            language = language,
-                            sheetLanguage = sheetLanguage,
-                            sheetTitleCustom = sheetTitle,
-                        ),
-                    )
-                },
-            ) { Text(live.save) }
+            TextButton(onClick = { onSave(buildSettings()) }) { Text(live.save) }
         },
         dismissButton = {
+            // Cancel still discards; back/outside already auto-saves via onDismissRequest.
             TextButton(onClick = onDismiss) { Text(live.cancel) }
         },
     )
 }
 
 @Composable
-private fun NumberField(value: String, onChange: (String) -> Unit, label: String) {
+private fun NumberField(
+    value: String,
+    onChange: (String) -> Unit,
+    label: String,
+    supporting: String? = null,
+) {
     OutlinedTextField(
         value = value,
         onValueChange = { onChange(it.filter { ch -> ch.isDigit() }) },
         label = { Text(label) },
+        supportingText = supporting?.let { { Text(it) } },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.fillMaxWidth(),

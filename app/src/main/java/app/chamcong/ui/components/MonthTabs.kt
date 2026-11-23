@@ -12,7 +12,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.chamcong.data.MonthKey
+import app.chamcong.data.SheetLabels
 import app.chamcong.ui.theme.AccentGreen
 import app.chamcong.ui.theme.ChipIdle
 import app.chamcong.ui.theme.SheetInk
@@ -34,13 +34,12 @@ import app.chamcong.ui.theme.SheetLine
 fun MonthTabs(
     months: List<MonthKey>,
     selected: MonthKey,
+    sheet: SheetLabels,
     onSelect: (MonthKey) -> Unit,
     onPrev: () -> Unit,
     onNext: () -> Unit,
-    onCreateMonth: () -> Unit,
     prevLabel: String = "Prev",
     nextLabel: String = "Next",
-    newMonthLabel: String = "New month",
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -64,7 +63,7 @@ fun MonthTabs(
             months.forEach { month ->
                 val active = month == selected
                 Text(
-                    text = month.labelTab(),
+                    text = sheet.tabLabel(month),
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
                         .background(if (active) AccentGreen else ChipIdle)
@@ -80,26 +79,6 @@ fun MonthTabs(
                     fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
                 )
             }
-            // Explicit "create new month" chip
-            Text(
-                text = "+ $newMonthLabel",
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(ChipIdle)
-                    .border(1.dp, AccentGreen, RoundedCornerShape(12.dp))
-                    .clickable(onClick = onCreateMonth)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                color = AccentGreen,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-        IconButton(onClick = onCreateMonth) {
-            Icon(
-                imageVector = Icons.Filled.Add,
-                contentDescription = newMonthLabel,
-                tint = AccentGreen,
-            )
         }
         IconButton(onClick = onNext) {
             Icon(

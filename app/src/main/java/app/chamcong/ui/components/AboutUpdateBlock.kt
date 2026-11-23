@@ -2,11 +2,8 @@ package app.chamcong.ui.components
 
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
-import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,9 +21,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import app.chamcong.BuildConfig
 import app.chamcong.UpdateChecker
+import app.chamcong.UpdateInstaller
 import app.chamcong.ui.i18n.AppStrings
 import app.chamcong.ui.theme.AccentGreen
 import app.chamcong.ui.theme.SheetMuted
@@ -104,7 +101,7 @@ fun AboutUpdateBlock(strings: AppStrings) {
                         }
                     }
                     status = strings.updateInstalling
-                    installUpdateApk(context, file, strings.updateNeedInstallPerm)
+                    UpdateInstaller.installApk(context, file, strings.updateNeedInstallPerm)
                 } catch (e: Exception) {
                     val msg = strings.updateFail.format(e.message ?: e.javaClass.simpleName)
                     status = msg
@@ -122,39 +119,9 @@ fun AboutUpdateBlock(strings: AppStrings) {
     status?.let {
         Text(
             text = it,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelLarge,
             color = SheetMuted,
-            modifier = Modifier.padding(top = 8.dp),
+            modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
         )
     }
-}
-
-private fun installUpdateApk(
-    context: android.content.Context,
-    file: java.io.File,
-    needPermMessage: String,
-) {
-    if (Build.VERSION.SDK_INT >= 26 && !context.packageManager.canRequestPackageInstalls()) {
-        Toast.makeText(context, needPermMessage, Toast.LENGTH_LONG).show()
-        runCatching {
-            context.startActivity(
-                Intent(
-                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                    Uri.parse("package:${context.packageName}"),
-                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            )
-        }
-        return
-    }
-    val uri = FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        file,
-    )
-    val intent = Intent(Intent.ACTION_VIEW).apply {
-        setDataAndType(uri, "application/vnd.android.package-archive")
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    }
-    context.startActivity(intent)
 }

@@ -36,6 +36,7 @@ fun SummaryFooter(
     modifier: Modifier = Modifier,
 ) {
     val ui = Strings.of(settings.language)
+    val currency = sheet.currencySuffix
 
     Column(
         modifier = modifier
@@ -53,7 +54,7 @@ fun SummaryFooter(
             MiniBox(summary.workDaysText(sheet.workDaysSuffix.trim()))
             MiniBox(summary.flagDays.toString())
             Text(
-                text = "${ui.payGross} ${summary.grossYen.formatYen()}",
+                text = "${ui.payGross} ${summary.grossYen.formatMoney(currency)}",
                 color = Color.White.copy(alpha = 0.88f),
                 fontSize = 11.sp,
                 maxLines = 1,
@@ -61,14 +62,14 @@ fun SummaryFooter(
                 modifier = Modifier.weight(1f),
             )
             Text(
-                text = "−${summary.deductionYen.formatYen()}",
+                text = "−${summary.deductionYen.formatMoney(currency)}",
                 color = Color(0xFFFFE082),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
             )
             Text(
-                text = summary.netYen.formatYen(),
+                text = summary.netYen.formatMoney(currency),
                 color = Color.White,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -76,7 +77,12 @@ fun SummaryFooter(
             )
         }
         Text(
-            text = ui.payFormulaLine(summary.grossYen, summary.deductionYen, summary.netYen),
+            text = ui.payFormulaLine(
+                summary.grossYen,
+                summary.deductionYen,
+                summary.netYen,
+                currency,
+            ),
             color = Color.White.copy(alpha = 0.65f),
             fontSize = 10.sp,
             lineHeight = 12.sp,

@@ -1,5 +1,6 @@
 package app.chamcong.ui
 
+import android.app.Activity
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,6 +34,7 @@ import androidx.compose.material3.TextButton
 import app.chamcong.ui.theme.AccentGreen
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +49,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.chamcong.data.SheetLabelFactory
 import app.chamcong.data.SheetLabels
 import app.chamcong.ui.components.DayRowItem
+import app.chamcong.ui.components.FirstSetupScreen
 import app.chamcong.ui.components.MonthTabs
 import app.chamcong.ui.components.SettingsDialog
 import app.chamcong.ui.components.ShareDialog
@@ -67,14 +70,48 @@ fun MonthReportScreen(
     val ui = Strings.of(state.settings.language)
     val sheet = SheetLabelFactory.of(state.settings.sheetLanguage)
     val context = LocalContext.current
+    val appNameWithLang = "${ui.appTitle} · ${state.settings.language.label}"
+
+    SideEffect {
+        (context as? Activity)?.title = appNameWithLang
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.shareEvents.collectLatest { event ->
             when (event) {
-                is ShareEvent.Ready -> context.startActivity(event.intent)
+                is ShareEvent.Ready -> {
+                    event.note?.let {
+                        Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+                    }
+                    context.startActivity(event.intent)
+                }
                 is ShareEvent.Failed -> Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    if (!state.setupReady) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(SheetPaper),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    if (!state.setupDone) {
+        FirstSetupScreen(
+            initial = state.settings,
+            onFinish = viewModel::completeFirstSetup,
+        )
+        return
+    }
+
+    LaunchedEffect(state.setupDone) {
+        if (state.setupDone) viewModel.startAutoUpdateIfNeeded()
     }
 
     Scaffold(
@@ -83,12 +120,25 @@ fun MonthReportScreen(
             .background(SheetPaper),
         containerColor = SheetPaper,
         bottomBar = {
-            SummaryFooter(
-                summary = state.summary,
-                sheet = sheet,
-                settings = state.settings,
-                modifier = Modifier.navigationBarsPadding(),
-            )
+            Column(Modifier.navigationBarsPadding()) {
+                state.updateStatus?.let { status ->
+                    Text(
+                        text = status,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(SheetHeader)
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = SheetMuted,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+                SummaryFooter(
+                    summary = state.summary,
+                    sheet = sheet,
+                    settings = state.settings,
+                )
+            }
         },
     ) { padding ->
         Column(
@@ -99,18 +149,21 @@ fun MonthReportScreen(
         ) {
             val adaptive = LocalAdaptive.current
             ReportHeader(
+                appName = appNameWithLang,
                 title = state.settings.resolvedSheetTitle(),
                 yearMonth = sheet.monthLabel(state.selectedMonth),
                 employeeName = state.settings.employeeName,
                 employeeKana = state.settings.employeeNameKana,
                 namePrefix = sheet.namePrefix,
                 saveLabel = ui.save,
+                newMonthLabel = ui.newMonth,
                 shareLabel = ui.share,
                 settingsLabel = ui.settings,
                 compact = adaptive.isFoldExpanded,
                 onSave = {
                     Toast.makeText(context, ui.saved, Toast.LENGTH_SHORT).show()
                 },
+                onCreateMonth = viewModel::createNewMonth,
                 onShare = { viewModel.openShare(true) },
                 onSettings = { viewModel.openSettings(true) },
             )
@@ -118,16 +171,15 @@ fun MonthReportScreen(
             MonthTabs(
                 months = state.months,
                 selected = state.selectedMonth,
+                sheet = sheet,
                 onSelect = viewModel::selectMonth,
                 onPrev = viewModel::prevMonth,
                 onNext = viewModel::nextMonth,
-                onCreateMonth = viewModel::createNewMonth,
                 prevLabel = ui.prevMonth,
                 nextLabel = ui.nextMonth,
-                newMonthLabel = ui.newMonth,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp),
+                    .padding(top = 10.dp, bottom = 6.dp),
             )
 
             TableHeader(sheet, state.settings.flagLabelOff)
@@ -181,16 +233,19 @@ fun MonthReportScreen(
 
 @Composable
 private fun ReportHeader(
+    appName: String,
     title: String,
     yearMonth: String,
     employeeName: String,
     employeeKana: String,
     namePrefix: String,
     saveLabel: String,
+    newMonthLabel: String,
     shareLabel: String,
     settingsLabel: String,
     compact: Boolean = false,
     onSave: () -> Unit,
+    onCreateMonth: () -> Unit,
     onShare: () -> Unit,
     onSettings: () -> Unit,
 ) {
@@ -200,6 +255,13 @@ private fun ReportHeader(
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = vPad),
     ) {
+        Text(
+            text = appName,
+            style = MaterialTheme.typography.labelLarge,
+            color = AccentGreen,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(bottom = 4.dp),
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -219,20 +281,34 @@ private fun ReportHeader(
                     fontSize = if (compact) 14.sp else 16.sp,
                 )
             }
-            TextButton(onClick = onSave) {
-                Icon(
-                    imageVector = Icons.Outlined.Save,
-                    contentDescription = null,
-                    tint = AccentGreen,
-                    modifier = Modifier.padding(end = 4.dp),
-                )
-                Text(saveLabel, color = AccentGreen, fontWeight = FontWeight.Bold)
-            }
-            IconButton(onClick = onShare) {
-                Icon(Icons.Outlined.Share, contentDescription = shareLabel, tint = SheetInk)
-            }
-            IconButton(onClick = onSettings) {
-                Icon(Icons.Outlined.Settings, contentDescription = settingsLabel, tint = SheetInk)
+            Spacer(Modifier.width(8.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                TextButton(onClick = onCreateMonth) {
+                    Text(
+                        text = "+ $newMonthLabel",
+                        color = AccentGreen,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                    )
+                }
+                TextButton(onClick = onSave) {
+                    Icon(
+                        imageVector = Icons.Outlined.Save,
+                        contentDescription = null,
+                        tint = AccentGreen,
+                        modifier = Modifier.padding(end = 6.dp),
+                    )
+                    Text(saveLabel, color = AccentGreen, fontWeight = FontWeight.Bold)
+                }
+                IconButton(onClick = onShare) {
+                    Icon(Icons.Outlined.Share, contentDescription = shareLabel, tint = SheetInk)
+                }
+                IconButton(onClick = onSettings) {
+                    Icon(Icons.Outlined.Settings, contentDescription = settingsLabel, tint = SheetInk)
+                }
             }
         }
         Spacer(Modifier.height(if (compact) 6.dp else 10.dp))

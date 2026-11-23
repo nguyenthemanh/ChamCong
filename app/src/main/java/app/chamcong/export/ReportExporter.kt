@@ -1,5 +1,6 @@
 package app.chamcong.export
 
+import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -7,6 +8,9 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import app.chamcong.data.DayRow
 import app.chamcong.data.MonthKey
 import app.chamcong.data.MonthSummary
@@ -36,6 +40,8 @@ object ReportExporter {
                 FileOutputStream(file).use { out ->
                     bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
                 }
+                // Also keep a copy in Pictures so the image is saved on the device.
+                saveJpgToGallery(context, bitmap, "$base.jpg")
                 bitmap.recycle()
                 file
             }
@@ -44,6 +50,43 @@ object ReportExporter {
                 writePdf(file, bitmap)
                 bitmap.recycle()
                 file
+            }
+        }
+    }
+
+    /** Persist JPG under Pictures/ChamCong (visible in Gallery). */
+    private fun saveJpgToGallery(context: Context, bitmap: Bitmap, displayName: String) {
+        runCatching {
+            if (Build.VERSION.SDK_INT >= 29) {
+                val values = ContentValues().apply {
+                    put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
+                    put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                    put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/ChamCong")
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                }
+                val resolver = context.contentResolver
+                val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                    ?: return@runCatching
+                resolver.openOutputStream(uri)?.use { out ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
+                }
+                values.clear()
+                values.put(MediaStore.Images.Media.IS_PENDING, 0)
+                resolver.update(uri, values, null, null)
+            } else {
+                @Suppress("DEPRECATION")
+                val pictures = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+                val folder = File(pictures, "ChamCong").apply { mkdirs() }
+                val outFile = File(folder, displayName)
+                FileOutputStream(outFile).use { out ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 92, out)
+                }
+                @Suppress("DEPRECATION")
+                val values = ContentValues().apply {
+                    put(MediaStore.Images.Media.DATA, outFile.absolutePath)
+                    put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                }
+                context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
             }
         }
     }
@@ -194,6 +237,7 @@ object ReportExporter {
         centerText(sheet.colDay, x0, x1, headerBaseline, headerPaint)
         centerText(sheet.colWeekday, x1, x2, headerBaseline, headerPaint)
         centerText(sheet.colSite, x2, x3, headerBaseline, headerPaint)
+        centerText(settings.flagLabelOff.ifBlank { sheet.colDriving }, x3, x4, headerBaseline, headerPaint)
 
         y = headerBottom
         val cellPaint = Paint(ink).apply { textSize = bodySize; textAlign = Paint.Align.CENTER }

@@ -18,8 +18,8 @@ data class DayEntry(
 data class MonthKey(val year: Int, val month: Int) : Comparable<MonthKey> {
     fun toYearMonth(): YearMonth = YearMonth.of(year, month)
 
-    /** Tab label always from real year/month. */
-    fun labelTab(): String = "Tháng${month}_$year"
+    /** Compact tab — prefer [SheetLabels.monthLabel] / region tab via factory. */
+    fun labelTab(): String = "${month}/$year"
 
     fun labelJa(): String = "${year} 年 ${month} 月"
 
@@ -55,14 +55,14 @@ data class DayRow(
 data class PaySettings(
     /** Example placeholder — user replaces with their name. */
     val employeeName: String = "NGUYEN VAN A",
-    val employeeNameKana: String = "",
-    val dailyWageYen: Long = 16_000L,
-    val overtimeHourYen: Long = 2_000L,
-    val flagBonusYen: Long = 2_000L,
-    val monthlyDeductionYen: Long = 69_000L,
-    /** Shown when flag is on, e.g. 運転あり / 応援 / … */
+    val employeeNameKana: String = "グエン・ヴァン・アー",
+    val dailyWageYen: Long = 0L,
+    val overtimeHourYen: Long = 0L,
+    val flagBonusYen: Long = 0L,
+    val monthlyDeductionYen: Long = 0L,
+    /** Shown when flag is on — default follows Japan region sample. */
     val flagLabelOn: String = "運転あり",
-    /** Chip idle / column short label. */
+    /** Chip idle / column short label — default follows Japan region sample. */
     val flagLabelOff: String = "運転",
     /** Menus only — does not change weekday / report title. */
     val language: AppLanguage = AppLanguage.VI,
