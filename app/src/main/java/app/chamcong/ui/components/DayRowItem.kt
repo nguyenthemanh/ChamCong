@@ -127,17 +127,19 @@ fun DayRowItem(
                 }
             },
         )
-        FlagChip(
-            labelIdle = settings.flagLabelOff,
-            labelActive = settings.flagLabelOn,
-            enabled = siteText.isNotBlank(),
-            active = row.entry.hasFlag && siteText.isNotBlank(),
-            onClick = {
-                if (siteText.isNotBlank()) {
-                    onChange(siteText, !row.entry.hasFlag)
-                }
-            },
-        )
+        if (settings.flagEnabled) {
+            FlagChip(
+                labelIdle = settings.flagLabelOff,
+                labelActive = settings.flagLabelOn,
+                enabled = siteText.isNotBlank(),
+                active = row.entry.hasFlag && siteText.isNotBlank(),
+                onClick = {
+                    if (siteText.isNotBlank()) {
+                        onChange(siteText, !row.entry.hasFlag)
+                    }
+                },
+            )
+        }
     }
 }
 

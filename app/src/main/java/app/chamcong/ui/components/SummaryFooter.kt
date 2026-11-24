@@ -52,45 +52,51 @@ fun SummaryFooter(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             MiniBox(summary.workDaysText(sheet.workDaysSuffix.trim()))
-            MiniBox(summary.flagDays.toString())
+            if (settings.flagEnabled) {
+                MiniBox(summary.flagDays.toString())
+            }
+            if (settings.salaryEnabled) {
+                Text(
+                    text = "${ui.payGross} ${summary.grossYen.formatMoney(currency)}",
+                    color = Color.White.copy(alpha = 0.88f),
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = "−${summary.deductionYen.formatMoney(currency)}",
+                    color = Color(0xFFFFE082),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                )
+                Text(
+                    text = summary.netYen.formatMoney(currency),
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                )
+            }
+        }
+        if (settings.salaryEnabled) {
             Text(
-                text = "${ui.payGross} ${summary.grossYen.formatMoney(currency)}",
-                color = Color.White.copy(alpha = 0.88f),
-                fontSize = 11.sp,
-                maxLines = 1,
+                text = ui.payFormulaLine(
+                    summary.grossYen,
+                    summary.deductionYen,
+                    summary.netYen,
+                    currency,
+                ),
+                color = Color.White.copy(alpha = 0.65f),
+                fontSize = 10.sp,
+                lineHeight = 12.sp,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text = "−${summary.deductionYen.formatMoney(currency)}",
-                color = Color(0xFFFFE082),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-            )
-            Text(
-                text = summary.netYen.formatMoney(currency),
-                color = Color.White,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
             )
         }
-        Text(
-            text = ui.payFormulaLine(
-                summary.grossYen,
-                summary.deductionYen,
-                summary.netYen,
-                currency,
-            ),
-            color = Color.White.copy(alpha = 0.65f),
-            fontSize = 10.sp,
-            lineHeight = 12.sp,
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
     }
 }
 

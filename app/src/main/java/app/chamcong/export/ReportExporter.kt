@@ -197,11 +197,12 @@ object ReportExporter {
         }
         y += 18f
 
+        val showFlag = settings.flagEnabled
         val tableLeft = margin
         val tableRight = width - margin
         val colDay = 70f
         val colWeek = 200f
-        val colDrive = 160f
+        val colDrive = if (showFlag) 160f else 0f
         val colSite = (tableRight - tableLeft) - colDay - colWeek - colDrive
         val x0 = tableLeft
         val x1 = x0 + colDay
@@ -213,7 +214,8 @@ object ReportExporter {
             canvas.drawLine(tableLeft, yy, tableRight, yy, line)
         }
         fun drawVLines(top: Float, bottom: Float) {
-            listOf(x0, x1, x2, x3, x4).forEach { x ->
+            val xs = if (showFlag) listOf(x0, x1, x2, x3, x4) else listOf(x0, x1, x2, x3)
+            xs.forEach { x ->
                 canvas.drawLine(x, top, x, bottom, line)
             }
         }
@@ -237,7 +239,15 @@ object ReportExporter {
         centerText(sheet.colDay, x0, x1, headerBaseline, headerPaint)
         centerText(sheet.colWeekday, x1, x2, headerBaseline, headerPaint)
         centerText(sheet.colSite, x2, x3, headerBaseline, headerPaint)
-        centerText(settings.flagLabelOff.ifBlank { sheet.colDriving }, x3, x4, headerBaseline, headerPaint)
+        if (showFlag) {
+            centerText(
+                settings.flagLabelOff.ifBlank { sheet.colDriving },
+                x3,
+                x4,
+                headerBaseline,
+                headerPaint,
+            )
+        }
 
         y = headerBottom
         val cellPaint = Paint(ink).apply { textSize = bodySize; textAlign = Paint.Align.CENTER }
@@ -256,7 +266,7 @@ object ReportExporter {
             if (row.entry.site.isNotBlank()) {
                 canvas.drawText(row.entry.site, x2 + 14f, baseline, sitePaint)
             }
-            if (row.entry.hasFlag && row.entry.isWorked) {
+            if (showFlag && row.entry.hasFlag && row.entry.isWorked) {
                 centerText(settings.flagLabelOn, x3, x4, baseline, drivePaint)
             }
             y = bottom
@@ -265,37 +275,46 @@ object ReportExporter {
         canvas.drawLine(tableLeft, headerTop, tableLeft, y, line)
         canvas.drawLine(tableRight, headerTop, tableRight, y, line)
 
-        // Excel D36 / E36: two cells directly under ゲンバ + flag columns (same row, same height).
+        // Excel D36 / E36: summary cells under site (+ flag when enabled).
         y += 18f
         val boxH = 52f
         val boxTop = y
         val boxBottom = y + boxH
-        val box1 = RectF(x2, boxTop, x3, boxBottom)
-        val box2 = RectF(x3, boxTop, x4, boxBottom)
-
-        canvas.drawRect(box1, fillCell)
-        canvas.drawRect(box2, fillCell)
-        // Outer + shared vertical — same grid style as the table
-        canvas.drawRect(RectF(x2, boxTop, x4, boxBottom), line)
-        canvas.drawLine(x3, boxTop, x3, boxBottom, line)
-
         val footerPaint = Paint(inkBold).apply {
             textSize = 30f
             textAlign = Paint.Align.CENTER
         }
         val textY = boxTop + boxH * 0.68f
-        canvas.drawText(
-            summary.workDaysText(sheet.workDaysSuffix.trim()),
-            box1.centerX(),
-            textY,
-            footerPaint,
-        )
-        canvas.drawText(
-            summary.flagDays.toString(),
-            box2.centerX(),
-            textY,
-            footerPaint,
-        )
+        if (showFlag) {
+            val box1 = RectF(x2, boxTop, x3, boxBottom)
+            val box2 = RectF(x3, boxTop, x4, boxBottom)
+            canvas.drawRect(box1, fillCell)
+            canvas.drawRect(box2, fillCell)
+            canvas.drawRect(RectF(x2, boxTop, x4, boxBottom), line)
+            canvas.drawLine(x3, boxTop, x3, boxBottom, line)
+            canvas.drawText(
+                summary.workDaysText(sheet.workDaysSuffix.trim()),
+                box1.centerX(),
+                textY,
+                footerPaint,
+            )
+            canvas.drawText(
+                summary.flagDays.toString(),
+                box2.centerX(),
+                textY,
+                footerPaint,
+            )
+        } else {
+            val box1 = RectF(x2, boxTop, x3, boxBottom)
+            canvas.drawRect(box1, fillCell)
+            canvas.drawRect(box1, line)
+            canvas.drawText(
+                summary.workDaysText(sheet.workDaysSuffix.trim()),
+                box1.centerX(),
+                textY,
+                footerPaint,
+            )
+        }
         // Pay estimate stays in-app only — not exported to PDF/JPG.
 
         return bitmap

@@ -56,6 +56,10 @@ data class PaySettings(
     /** Example placeholder — user replaces with their name. */
     val employeeName: String = "NGUYEN VAN A",
     val employeeNameKana: String = "グエン・ヴァン・アー",
+    /** When false, app only counts work days — no pay estimate UI. */
+    val salaryEnabled: Boolean = true,
+    /** When false, hide day-flag column, chips, and related settings. */
+    val flagEnabled: Boolean = true,
     val dailyWageYen: Long = 0L,
     val overtimeHourYen: Long = 0L,
     val flagBonusYen: Long = 0L,
@@ -131,10 +135,25 @@ object CalendarFactory {
     fun summarize(rows: List<DayRow>, settings: PaySettings): MonthSummary {
         val workDays = rows.count { it.entry.isWorked }
         val overtimeHours = rows.sumOf { if (it.entry.isWorked) it.entry.overtimeHours else 0 }
-        val flagDays = rows.count { it.entry.isWorked && it.entry.hasFlag }
+        val flagDays = if (settings.flagEnabled) {
+            rows.count { it.entry.isWorked && it.entry.hasFlag }
+        } else {
+            0
+        }
+        if (!settings.salaryEnabled) {
+            return MonthSummary(
+                workDays = workDays,
+                overtimeHours = overtimeHours,
+                flagDays = flagDays,
+                grossYen = 0L,
+                deductionYen = 0L,
+                netYen = 0L,
+            )
+        }
+        val flagPay = if (settings.flagEnabled) flagDays * settings.flagBonusYen else 0L
         val gross = workDays * settings.dailyWageYen +
             overtimeHours * settings.overtimeHourYen +
-            flagDays * settings.flagBonusYen
+            flagPay
         val deduction = settings.monthlyDeductionYen
         return MonthSummary(
             workDays = workDays,

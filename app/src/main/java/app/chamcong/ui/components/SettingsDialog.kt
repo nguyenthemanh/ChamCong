@@ -1,19 +1,14 @@
 package app.chamcong.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -21,11 +16,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import app.chamcong.data.AppLanguage
 import app.chamcong.data.PaySettings
@@ -41,6 +33,10 @@ fun SettingsDialog(
 ) {
     var name by remember(settings) { mutableStateOf(settings.employeeName) }
     var kana by remember(settings) { mutableStateOf(settings.employeeNameKana) }
+    var salaryEnabled by remember(settings) { mutableStateOf(settings.salaryEnabled) }
+    var flagEnabled by remember(settings) { mutableStateOf(settings.flagEnabled) }
+    var salaryFolderOpen by remember(settings) { mutableStateOf(false) }
+    var flagFolderOpen by remember(settings) { mutableStateOf(false) }
     var wage by remember(settings) { mutableStateOf(settings.dailyWageYen.toString()) }
     var ot by remember(settings) { mutableStateOf(settings.overtimeHourYen.toString()) }
     var flagBonus by remember(settings) { mutableStateOf(settings.flagBonusYen.toString()) }
@@ -69,6 +65,8 @@ fun SettingsDialog(
         return PaySettings(
             employeeName = name,
             employeeNameKana = kana,
+            salaryEnabled = salaryEnabled,
+            flagEnabled = flagEnabled,
             dailyWageYen = wage.toLongOrNull() ?: settings.dailyWageYen,
             overtimeHourYen = ot.toLongOrNull() ?: settings.overtimeHourYen,
             flagBonusYen = flagBonus.toLongOrNull() ?: settings.flagBonusYen,
@@ -81,144 +79,171 @@ fun SettingsDialog(
         )
     }
 
-    // Back / tap outside → auto-save (forget to press Lưu).
     AlertDialog(
         onDismissRequest = { onSave(buildSettings()) },
-        title = { Text(live.settings) },
+        containerColor = SettingsPageBg,
+        title = {
+            Text(live.settings, fontWeight = FontWeight.Bold)
+        },
         text = {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .background(SettingsPageBg),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text(live.name) },
-                    placeholder = { Text("NGUYEN VAN A") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = kana,
-                    onValueChange = { kana = it },
-                    label = { Text(live.nameKana) },
-                    placeholder = { Text(sheet.nameReadingExample) },
-                    supportingText = { Text(sheet.nameReadingExample) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                NumberField(wage, { wage = it }, live.dailyWageLabel(currency))
-                NumberField(ot, { ot = it }, live.overtimeHourLabel(currency))
-                NumberField(deduction, { deduction = it }, live.monthlyDeductionLabel(currency))
-                Text(
-                    live.monthlyDeductionHintText(currency),
-                    color = SheetMuted,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                OutlinedTextField(
-                    value = flagOn,
-                    onValueChange = { flagOn = it },
-                    label = { Text(live.flagLabelOn) },
-                    placeholder = { Text(sheet.drivingOn) },
-                    supportingText = { Text(live.flagLabelOnHint.format(sheet.drivingOn)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                NumberField(
-                    value = flagBonus,
-                    onChange = { flagBonus = it },
-                    label = live.flagBonusLabel(currency),
-                    supporting = live.flagBonusHint.format(flagOn.ifBlank { sheet.drivingOn }),
-                )
-                OutlinedTextField(
-                    value = flagOff,
-                    onValueChange = { flagOff = it },
-                    label = { Text(live.flagLabelOff) },
-                    placeholder = { Text(sheet.driving) },
-                    supportingText = { Text(live.flagLabelOffHint.format(sheet.driving)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                Text(live.uiLanguage, fontWeight = FontWeight.SemiBold)
-                Text(live.uiLanguageHint, color = SheetMuted, style = MaterialTheme.typography.bodySmall)
-                LanguageRadios(language) { language = it }
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                Text(live.sheetRegion, fontWeight = FontWeight.SemiBold)
-                Text(live.sheetRegionHint, color = SheetMuted, style = MaterialTheme.typography.bodySmall)
-                LanguageRadios(sheetLanguage) { next ->
-                    applyRegionExamples(sheetLanguage, next)
-                    sheetLanguage = next
+                SettingsSectionLabel(live.sectionProfile)
+                SettingsCard {
+                    SettingsTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = live.name,
+                        placeholder = "NGUYEN VAN A",
+                    )
+                    SettingsTextField(
+                        value = kana,
+                        onValueChange = { kana = it },
+                        label = live.nameKana,
+                        placeholder = sheet.nameReadingExample,
+                        supporting = sheet.nameReadingExample,
+                    )
                 }
 
-                OutlinedTextField(
-                    value = sheetTitle,
-                    onValueChange = { sheetTitle = it },
-                    label = { Text(live.sheetTitle) },
-                    placeholder = { Text(sheet.title) },
-                    supportingText = { Text(live.sheetTitleHint.format(sheet.title)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text(
-                    text = "→ $previewTitle",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Medium,
-                )
+                SettingsSectionLabel(live.sectionFeatures)
+                SettingsCard {
+                    SettingsSwitchRow(
+                        title = live.salaryEnabled,
+                        hint = live.salaryEnabledHint,
+                        checked = salaryEnabled,
+                        onCheckedChange = {
+                            salaryEnabled = it
+                            salaryFolderOpen = it
+                        },
+                    )
+                    if (salaryEnabled) {
+                        SettingsCardDivider()
+                        SettingsFolderRow(
+                            title = live.salaryFolder,
+                            openTitle = live.salaryFolderOpen,
+                            open = salaryFolderOpen,
+                            onToggle = { salaryFolderOpen = !salaryFolderOpen },
+                        ) {
+                            SettingsNumberField(wage, { wage = it }, live.dailyWageLabel(currency))
+                            SettingsNumberField(ot, { ot = it }, live.overtimeHourLabel(currency))
+                            SettingsNumberField(
+                                deduction,
+                                { deduction = it },
+                                live.monthlyDeductionLabel(currency),
+                                supporting = live.monthlyDeductionHintText(currency),
+                            )
+                            if (flagEnabled) {
+                                SettingsNumberField(
+                                    value = flagBonus,
+                                    onChange = { flagBonus = it },
+                                    label = live.flagBonusLabel(currency),
+                                    supporting = live.flagBonusHint.format(
+                                        flagOn.ifBlank { sheet.drivingOn },
+                                    ),
+                                )
+                            }
+                        }
+                    }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                AboutUpdateBlock(strings = live)
+                    SettingsCardDivider()
+                    SettingsSwitchRow(
+                        title = live.flagEnabled,
+                        hint = live.flagEnabledHint,
+                        checked = flagEnabled,
+                        onCheckedChange = {
+                            flagEnabled = it
+                            flagFolderOpen = it
+                        },
+                    )
+                    if (flagEnabled) {
+                        SettingsCardDivider()
+                        SettingsFolderRow(
+                            title = live.flagFolder,
+                            openTitle = live.flagFolderOpen,
+                            open = flagFolderOpen,
+                            onToggle = { flagFolderOpen = !flagFolderOpen },
+                        ) {
+                            SettingsTextField(
+                                value = flagOn,
+                                onValueChange = { flagOn = it },
+                                label = live.flagLabelOn,
+                                placeholder = sheet.drivingOn,
+                                supporting = live.flagLabelOnHint.format(sheet.drivingOn),
+                            )
+                            SettingsTextField(
+                                value = flagOff,
+                                onValueChange = { flagOff = it },
+                                label = live.flagLabelOff,
+                                placeholder = sheet.driving,
+                                supporting = live.flagLabelOffHint.format(sheet.driving),
+                            )
+                        }
+                    }
+                }
+
+                SettingsSectionLabel(live.sectionLanguage)
+                SettingsCard {
+                    Text(
+                        live.uiLanguage,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                    Text(
+                        live.uiLanguageHint,
+                        color = SheetMuted,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(bottom = 4.dp),
+                    )
+                    SettingsLanguageRadios(language) { language = it }
+
+                    SettingsCardDivider()
+                    Text(
+                        live.sheetRegion,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                    Text(
+                        live.sheetRegionHint,
+                        color = SheetMuted,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(bottom = 4.dp),
+                    )
+                    SettingsLanguageRadios(sheetLanguage) { next ->
+                        applyRegionExamples(sheetLanguage, next)
+                        sheetLanguage = next
+                    }
+
+                    SettingsCardDivider()
+                    SettingsTextField(
+                        value = sheetTitle,
+                        onValueChange = { sheetTitle = it },
+                        label = live.sheetTitle,
+                        placeholder = sheet.title,
+                        supporting = live.sheetTitleHint.format(sheet.title),
+                    )
+                    Text(
+                        text = "→ $previewTitle",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                }
+
+                SettingsSectionLabel(live.sectionAbout)
+                SettingsCard {
+                    AboutUpdateBlock(strings = live)
+                }
             }
         },
         confirmButton = {
             TextButton(onClick = { onSave(buildSettings()) }) { Text(live.save) }
         },
         dismissButton = {
-            // Cancel still discards; back/outside already auto-saves via onDismissRequest.
             TextButton(onClick = onDismiss) { Text(live.cancel) }
         },
     )
-}
-
-@Composable
-private fun NumberField(
-    value: String,
-    onChange: (String) -> Unit,
-    label: String,
-    supporting: String? = null,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = { onChange(it.filter { ch -> ch.isDigit() }) },
-        label = { Text(label) },
-        supportingText = supporting?.let { { Text(it) } },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        modifier = Modifier.fillMaxWidth(),
-    )
-}
-
-@Composable
-private fun LanguageRadios(selected: AppLanguage, onSelect: (AppLanguage) -> Unit) {
-    AppLanguage.entries.forEach { lang ->
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .selectable(
-                    selected = selected == lang,
-                    onClick = { onSelect(lang) },
-                    role = Role.RadioButton,
-                ),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            RadioButton(selected = selected == lang, onClick = { onSelect(lang) })
-            Text(lang.label)
-        }
-    }
 }

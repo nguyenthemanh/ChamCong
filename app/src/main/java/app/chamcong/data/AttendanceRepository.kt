@@ -19,6 +19,8 @@ class AttendanceRepository(private val context: Context) {
 
     private val nameKey = stringPreferencesKey("employee_name")
     private val kanaKey = stringPreferencesKey("employee_kana")
+    private val salaryEnabledKey = booleanPreferencesKey("salary_enabled")
+    private val flagEnabledKey = booleanPreferencesKey("flag_enabled")
     private val wageKey = longPreferencesKey("daily_wage")
     private val otKey = longPreferencesKey("overtime_hour")
     private val flagBonusKey = longPreferencesKey("flag_bonus")
@@ -41,6 +43,8 @@ class AttendanceRepository(private val context: Context) {
         PaySettings(
             employeeName = prefs[nameKey] ?: defaults.employeeName,
             employeeNameKana = prefs[kanaKey] ?: defaults.employeeNameKana,
+            salaryEnabled = prefs[salaryEnabledKey] ?: defaults.salaryEnabled,
+            flagEnabled = prefs[flagEnabledKey] ?: defaults.flagEnabled,
             dailyWageYen = prefs[wageKey] ?: defaults.dailyWageYen,
             overtimeHourYen = prefs[otKey] ?: defaults.overtimeHourYen,
             flagBonusYen = prefs[flagBonusKey] ?: defaults.flagBonusYen,
@@ -102,6 +106,8 @@ class AttendanceRepository(private val context: Context) {
             val d = PaySettings()
             prefs[nameKey] = settings.employeeName.trim().ifBlank { d.employeeName }
             prefs[kanaKey] = settings.employeeNameKana.trim()
+            prefs[salaryEnabledKey] = settings.salaryEnabled
+            prefs[flagEnabledKey] = settings.flagEnabled
             prefs[wageKey] = settings.dailyWageYen.coerceAtLeast(0L)
             prefs[otKey] = settings.overtimeHourYen.coerceAtLeast(0L)
             prefs[flagBonusKey] = settings.flagBonusYen.coerceAtLeast(0L)

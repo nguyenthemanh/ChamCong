@@ -182,7 +182,11 @@ fun MonthReportScreen(
                     .padding(top = 10.dp, bottom = 6.dp),
             )
 
-            TableHeader(sheet, state.settings.flagLabelOff)
+            TableHeader(
+                sheet = sheet,
+                flagColumn = state.settings.flagLabelOff,
+                showFlag = state.settings.flagEnabled,
+            )
 
             Box(
                 modifier = Modifier
@@ -345,7 +349,7 @@ private fun ReportHeader(
 }
 
 @Composable
-private fun TableHeader(sheet: SheetLabels, flagColumn: String) {
+private fun TableHeader(sheet: SheetLabels, flagColumn: String, showFlag: Boolean) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -360,7 +364,9 @@ private fun TableHeader(sheet: SheetLabels, flagColumn: String) {
         Text(sheet.colDay, Modifier.width(28.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
         Text(sheet.colWeekday, Modifier.width(36.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
         Text(sheet.colSite, Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-        Text(flagColumn, Modifier.width(72.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        if (showFlag) {
+            Text(flagColumn, Modifier.width(72.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        }
     }
     HorizontalDivider(color = SheetLine, thickness = 1.dp, modifier = Modifier.padding(horizontal = 10.dp))
 }
