@@ -166,8 +166,10 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun selectMonth(month: MonthKey) {
+        if (month == selectedMonth.value) return
         selectedMonth.value = month
-        viewModelScope.launch { repo.ensureMonth(month) }
+        // Do not ensureMonth here for every snap — only create via +/- / new month.
+        // ensureMonth on select was re-adding a month right after delete.
     }
 
     fun prevMonth() = shiftMonth(false)
@@ -184,9 +186,10 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
 
     fun deleteMonth(month: MonthKey) {
         viewModelScope.launch {
-            val next = repo.deleteMonth(month)
-            selectedMonth.value = next
-            repo.ensureMonth(next)
+            runCatching {
+                val next = repo.deleteMonth(month)
+                selectedMonth.value = next
+            }
         }
     }
 

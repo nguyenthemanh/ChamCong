@@ -1,9 +1,8 @@
 package app.chamcong.ui.components
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -14,13 +13,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,7 +37,6 @@ import app.chamcong.ui.theme.ChipIdle
 import app.chamcong.ui.theme.SheetInk
 import app.chamcong.ui.theme.SheetLine
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MonthTabs(
     months: List<MonthKey>,
@@ -60,6 +56,7 @@ fun MonthTabs(
     modifier: Modifier = Modifier,
 ) {
     var pendingDelete by remember { mutableStateOf<MonthKey?>(null) }
+    val canDelete = onDeleteMonth != null
 
     Row(
         modifier = modifier.padding(horizontal = 4.dp),
@@ -79,9 +76,11 @@ fun MonthTabs(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            months.forEach { month ->
+            // Cũ → mới (trái → phải): ← lùi tháng cũ, → tiến tháng mới
+            months.sorted().forEach { month ->
                 val active = month == selected
-                Row(
+                Text(
+                    text = sheet.tabLabel(month),
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
                         .background(if (active) AccentGreen else ChipIdle)
@@ -90,41 +89,24 @@ fun MonthTabs(
                             color = SheetLine,
                             shape = RoundedCornerShape(12.dp),
                         )
-                        .combinedClickable(
-                            onClick = { onSelect(month) },
-                            onLongClick = {
-                                if (onDeleteMonth != null) pendingDelete = month
-                            },
-                        )
-                        .padding(
-                            start = 12.dp,
-                            end = if (active && onDeleteMonth != null) 4.dp else 12.dp,
-                            top = 6.dp,
-                            bottom = 6.dp,
-                        ),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    Text(
-                        text = sheet.tabLabel(month),
-                        color = if (active) Color.White else SheetInk,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                    )
-                    if (active && onDeleteMonth != null) {
-                        IconButton(
-                            onClick = { pendingDelete = month },
-                            modifier = Modifier.size(28.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Close,
-                                contentDescription = deleteLabel,
-                                tint = Color.White.copy(alpha = 0.9f),
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-                    }
-                }
+                        .clickable { onSelect(month) }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    color = if (active) Color.White else SheetInk,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                )
+            }
+        }
+        if (canDelete) {
+            IconButton(
+                onClick = { pendingDelete = selected },
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Delete,
+                    contentDescription = deleteLabel,
+                    tint = AccentRed,
+                    modifier = Modifier.size(22.dp),
+                )
             }
         }
         IconButton(onClick = onNext) {
@@ -138,25 +120,19 @@ fun MonthTabs(
 
     val toDelete = pendingDelete
     if (toDelete != null && onDeleteMonth != null) {
-        AlertDialog(
-            onDismissRequest = { pendingDelete = null },
-            title = { Text(deleteTitle, fontWeight = FontWeight.Bold) },
-            text = { Text(deleteBody.format(sheet.monthLabel(toDelete))) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onDeleteMonth(toDelete)
-                        pendingDelete = null
-                    },
-                ) {
-                    Text(deleteConfirm, color = AccentRed, fontWeight = FontWeight.Bold)
-                }
+        DeleteMonthDialog(
+            month = toDelete,
+            sheet = sheet,
+            title = deleteTitle,
+            body = deleteBody,
+            confirm = deleteConfirm,
+            cancel = cancelLabel,
+            onConfirm = {
+                val target = toDelete
+                pendingDelete = null
+                onDeleteMonth(target)
             },
-            dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) {
-                    Text(cancelLabel)
-                }
-            },
+            onDismiss = { pendingDelete = null },
         )
     }
 }

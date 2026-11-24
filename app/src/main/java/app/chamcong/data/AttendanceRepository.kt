@@ -70,7 +70,8 @@ class AttendanceRepository(private val context: Context) {
         context.dataStore.edit { prefs ->
             val months = parseMonths(prefs[monthsKey]).toMutableSet()
             if (months.add(month)) {
-                prefs[monthsKey] = encodeMonths(months.sortedDescending())
+                // Ascending: cũ → mới (trái → phải), khớp ← tháng trước / → tháng sau
+                prefs[monthsKey] = encodeMonths(months.sorted())
             }
         }
     }
@@ -97,7 +98,7 @@ class AttendanceRepository(private val context: Context) {
             prefs[monthEntriesKey(month)] = encodeEntries(map)
             val months = parseMonths(prefs[monthsKey]).toMutableSet()
             months.add(month)
-            prefs[monthsKey] = encodeMonths(months.sortedDescending())
+            prefs[monthsKey] = encodeMonths(months.sorted())
         }
     }
 
@@ -144,29 +145,28 @@ class AttendanceRepository(private val context: Context) {
 
     /**
      * Remove a month and its day entries.
-     * Keeps at least one month (current calendar month if the list would be empty).
+     * Always keeps ≥1 month: if it was the last one, clears its days and stays on it
+     * (or switches to the real calendar month when that last tab was a different month).
      * @return month that should be selected after delete
      */
     suspend fun deleteMonth(month: MonthKey): MonthKey {
         var nextSelected = MonthKey.current()
         context.dataStore.edit { prefs ->
-            val months = parseMonths(prefs[monthsKey]).toMutableList()
-            if (months.size <= 1 && months.contains(month)) {
-                // Must keep one month — clear its entries instead of removing the tab.
-                prefs.remove(monthEntriesKey(month))
-                nextSelected = month
-                return@edit
-            }
-            months.removeAll { it == month }
+            val existing = parseMonths(prefs[monthsKey]).distinct()
             prefs.remove(monthEntriesKey(month))
-            if (months.isEmpty()) {
-                val cur = MonthKey.current()
-                months.add(cur)
-                nextSelected = cur
+
+            val remaining = existing.filterNot { it == month }.toMutableList()
+            if (remaining.isEmpty()) {
+                val fallback = MonthKey.current()
+                remaining.add(fallback)
+                nextSelected = fallback
             } else {
-                nextSelected = months.sortedDescending().first()
+                val sorted = remaining.sorted()
+                nextSelected = sorted.lastOrNull { it < month }
+                    ?: sorted.firstOrNull { it > month }
+                    ?: sorted.last()
             }
-            prefs[monthsKey] = encodeMonths(months.sortedDescending())
+            prefs[monthsKey] = encodeMonths(remaining.sorted())
         }
         return nextSelected
     }
@@ -183,7 +183,7 @@ class AttendanceRepository(private val context: Context) {
                     val o = arr.getJSONObject(i)
                     add(MonthKey(o.getInt("y"), o.getInt("m")))
                 }
-            }.sortedDescending()
+            }.sorted()
         } catch (_: Exception) {
             emptyList()
         }

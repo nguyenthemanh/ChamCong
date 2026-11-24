@@ -3,7 +3,7 @@ package app.chamcong.ui.components
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,11 +15,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -37,7 +38,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -54,13 +54,14 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
-private const val WheelCycles = 40
 private val ItemHeight = 44.dp
 private val WheelHeight = 176.dp
 
 /**
- * Vertical looping month picker for fold-open / tablet.
- * Delete: nút dưới bánh xe, hoặc nhấn giữ mục đang chọn.
+ * Vertical month picker (fold / tablet).
+ * - List thật (không nhân bản 40 lần → tránh mọi tháng trùng tên)
+ * - Cuộn snap giữa, cảm giác “vòng” khi nhiều tháng
+ * - Xóa chỉ qua nút (ổn định, không race với scroll)
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -77,148 +78,24 @@ fun VerticalMonthWheel(
     onDeleteMonth: ((MonthKey) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    if (months.isEmpty()) return
+    // Cũ trên → mới dưới, khớp ← lùi / → tiến trên dải tab ngang
+    val sorted = remember(months) { months.distinct().sorted() }
+    if (sorted.isEmpty()) return
 
-    val sorted = remember(months) { months.sortedDescending() }
-    val base = sorted.size
-    val total = base * WheelCycles
-    val midCycle = WheelCycles / 2
-
-    fun indexOfMonth(m: MonthKey): Int {
-        val i = sorted.indexOf(m).coerceAtLeast(0)
-        return midCycle * base + i
-    }
-
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = indexOfMonth(selected))
-    val fling = rememberSnapFlingBehavior(lazyListState = listState)
-    val scope = rememberCoroutineScope()
     var pendingDelete by remember { mutableStateOf<MonthKey?>(null) }
-    var suppressSelect by remember { mutableStateOf(false) }
-
-    LaunchedEffect(selected, sorted) {
-        val target = indexOfMonth(selected)
-        val info = listState.layoutInfo
-        val viewportCenter = info.viewportStartOffset +
-            (info.viewportEndOffset - info.viewportStartOffset) / 2
-        val centerIdx = info.visibleItemsInfo.minByOrNull { item ->
-            abs((item.offset + item.size / 2) - viewportCenter)
-        }?.index
-        val centeredMonth = centerIdx?.let { sorted[it % base] }
-        if (centeredMonth != selected) {
-            suppressSelect = true
-            listState.scrollToItem(target)
-            suppressSelect = false
-        }
-    }
-
-    LaunchedEffect(listState, sorted) {
-        snapshotFlow {
-            val info = listState.layoutInfo
-            val viewportCenter = info.viewportStartOffset +
-                (info.viewportEndOffset - info.viewportStartOffset) / 2
-            info.visibleItemsInfo.minByOrNull { item ->
-                abs((item.offset + item.size / 2) - viewportCenter)
-            }?.index
-        }
-            .filter { it != null }
-            .distinctUntilChanged()
-            .collect { idx ->
-                if (suppressSelect || idx == null) return@collect
-                val m = sorted[idx % base]
-                if (m != selected) onSelect(m)
-            }
-    }
-
-    val centeredIndex by remember {
-        derivedStateOf {
-            val info = listState.layoutInfo
-            val viewportCenter = info.viewportStartOffset +
-                (info.viewportEndOffset - info.viewportStartOffset) / 2
-            info.visibleItemsInfo.minByOrNull { item ->
-                abs((item.offset + item.size / 2) - viewportCenter)
-            }?.index
-        }
-    }
+    val structureKey = sorted.joinToString("|") { "${it.year}-${it.month}" }
 
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(WheelHeight)
-                .clip(RoundedCornerShape(14.dp))
-                .background(ChipIdle)
-                .border(1.dp, SheetLine, RoundedCornerShape(14.dp)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(ItemHeight)
-                    .padding(horizontal = 6.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(AccentGreen.copy(alpha = 0.14f))
-                    .border(1.dp, AccentGreen.copy(alpha = 0.35f), RoundedCornerShape(10.dp)),
+        key(structureKey) {
+            MonthSnapList(
+                sorted = sorted,
+                selected = selected,
+                sheet = sheet,
+                onSelect = onSelect,
             )
-
-            LazyColumn(
-                state = listState,
-                flingBehavior = fling,
-                userScrollEnabled = true,
-                contentPadding = PaddingValues(vertical = (WheelHeight - ItemHeight) / 2),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                items(count = total, key = { it }) { index ->
-                    val month = sorted[index % base]
-                    val dist = if (centeredIndex != null) abs(index - centeredIndex!!) else 0
-                    val scale = when (dist) {
-                        0 -> 1f
-                        1 -> 0.92f
-                        else -> 0.84f
-                    }
-                    val alpha = when (dist) {
-                        0 -> 1f
-                        1 -> 0.55f
-                        else -> 0.32f
-                    }
-                    val active = dist == 0
-                    Text(
-                        text = sheet.tabLabel(month),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(ItemHeight)
-                            .graphicsLayer {
-                                scaleX = scale
-                                scaleY = scale
-                                this.alpha = alpha
-                            }
-                            .pointerInput(month, active, onDeleteMonth) {
-                                detectTapGestures(
-                                    onLongPress = {
-                                        if (onDeleteMonth != null) {
-                                            pendingDelete = month
-                                        }
-                                    },
-                                    onTap = {
-                                        scope.launch {
-                                            listState.animateScrollToItem(index)
-                                        }
-                                        onSelect(month)
-                                    },
-                                )
-                            }
-                            .padding(horizontal = 8.dp, vertical = 10.dp),
-                        textAlign = TextAlign.Center,
-                        color = if (active) AccentGreen else SheetMuted,
-                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                        fontSize = if (active) 16.sp else 14.sp,
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                }
-            }
         }
 
         if (onDeleteMonth != null) {
@@ -249,25 +126,136 @@ fun VerticalMonthWheel(
 
     val toDelete = pendingDelete
     if (toDelete != null && onDeleteMonth != null) {
-        AlertDialog(
-            onDismissRequest = { pendingDelete = null },
-            title = { Text(deleteTitle, fontWeight = FontWeight.Bold) },
-            text = { Text(deleteBody.format(sheet.monthLabel(toDelete))) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onDeleteMonth(toDelete)
-                        pendingDelete = null
-                    },
-                ) {
-                    Text(deleteConfirm, color = AccentRed, fontWeight = FontWeight.Bold)
-                }
+        DeleteMonthDialog(
+            month = toDelete,
+            sheet = sheet,
+            title = deleteTitle,
+            body = deleteBody,
+            confirm = deleteConfirm,
+            cancel = cancelLabel,
+            onConfirm = {
+                pendingDelete = null
+                onDeleteMonth(toDelete)
             },
-            dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) {
-                    Text(cancelLabel)
-                }
-            },
+            onDismiss = { pendingDelete = null },
         )
     }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MonthSnapList(
+    sorted: List<MonthKey>,
+    selected: MonthKey,
+    sheet: SheetLabels,
+    onSelect: (MonthKey) -> Unit,
+) {
+    val initial = sorted.indexOf(selected).coerceAtLeast(0)
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initial)
+    val fling = rememberSnapFlingBehavior(lazyListState = listState)
+    val scope = rememberCoroutineScope()
+    var suppress by remember { mutableStateOf(false) }
+
+    LaunchedEffect(selected, sorted) {
+        val target = sorted.indexOf(selected)
+        if (target < 0) return@LaunchedEffect
+        val center = centeredIndex(listState) ?: return@LaunchedEffect
+        if (center != target) {
+            suppress = true
+            listState.scrollToItem(target)
+            suppress = false
+        }
+    }
+
+    LaunchedEffect(listState, sorted) {
+        snapshotFlow { centeredIndex(listState) }
+            .filter { it != null }
+            .distinctUntilChanged()
+            .collect { idx ->
+                if (suppress || idx == null) return@collect
+                val m = sorted.getOrNull(idx) ?: return@collect
+                if (m != selected) onSelect(m)
+            }
+    }
+
+    val centerIdx by remember {
+        derivedStateOf { centeredIndex(listState) }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(WheelHeight)
+            .clip(RoundedCornerShape(14.dp))
+            .background(ChipIdle)
+            .border(1.dp, SheetLine, RoundedCornerShape(14.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(ItemHeight)
+                .padding(horizontal = 6.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(AccentGreen.copy(alpha = 0.14f))
+                .border(1.dp, AccentGreen.copy(alpha = 0.35f), RoundedCornerShape(10.dp)),
+        )
+
+        LazyColumn(
+            state = listState,
+            flingBehavior = fling,
+            contentPadding = PaddingValues(vertical = (WheelHeight - ItemHeight) / 2),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            itemsIndexed(
+                items = sorted,
+                key = { _, m -> "${m.year}-${m.month}" },
+            ) { index, month ->
+                val dist = centerIdx?.let { abs(index - it) } ?: abs(index - initial)
+                val scale = when (dist) {
+                    0 -> 1f
+                    1 -> 0.92f
+                    else -> 0.84f
+                }
+                val alpha = when (dist) {
+                    0 -> 1f
+                    1 -> 0.55f
+                    else -> 0.32f
+                }
+                val active = dist == 0
+                Text(
+                    text = sheet.tabLabel(month),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(ItemHeight)
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                            this.alpha = alpha
+                        }
+                        .clickable {
+                            scope.launch { listState.animateScrollToItem(index) }
+                            onSelect(month)
+                        }
+                        .padding(horizontal = 8.dp, vertical = 10.dp),
+                    textAlign = TextAlign.Center,
+                    color = if (active) AccentGreen else SheetMuted,
+                    fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                    fontSize = if (active) 16.sp else 14.sp,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+        }
+    }
+}
+
+private fun centeredIndex(listState: androidx.compose.foundation.lazy.LazyListState): Int? {
+    val info = listState.layoutInfo
+    if (info.visibleItemsInfo.isEmpty()) return null
+    val viewportCenter = info.viewportStartOffset +
+        (info.viewportEndOffset - info.viewportStartOffset) / 2
+    return info.visibleItemsInfo.minByOrNull { item ->
+        abs((item.offset + item.size / 2) - viewportCenter)
+    }?.index
 }
