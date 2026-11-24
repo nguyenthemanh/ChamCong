@@ -233,7 +233,8 @@ private fun MonthSnapList(
                         fontSize = if (active) 16.sp else 14.sp,
                         style = MaterialTheme.typography.labelLarge,
                     )
-                    if (onDeleteClick != null) {
+                    // X chỉ trên tháng đang chọn — khớp màn ngoài, ít nhảy layout
+                    if (onDeleteClick != null && active) {
                         IconButton(
                             onClick = { onDeleteClick(month) },
                             modifier = Modifier.size(28.dp),
@@ -241,7 +242,7 @@ private fun MonthSnapList(
                             Icon(
                                 imageVector = Icons.Filled.Close,
                                 contentDescription = deleteLabel,
-                                tint = if (active) AccentRed else AccentRed.copy(alpha = 0.35f),
+                                tint = AccentRed,
                                 modifier = Modifier.size(16.dp),
                             )
                         }

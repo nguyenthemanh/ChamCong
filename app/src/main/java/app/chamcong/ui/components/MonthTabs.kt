@@ -3,12 +3,14 @@ package app.chamcong.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -19,8 +21,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -58,6 +60,17 @@ fun MonthTabs(
 ) {
     var pendingDelete by remember { mutableStateOf<MonthKey?>(null) }
     val canDelete = onDeleteMonth != null
+    val ordered = remember(months) { months.distinct().sorted() }
+    val highlight = if (ordered.contains(selected)) selected else ordered.lastOrNull()
+    val listState = rememberLazyListState()
+
+    // Cuộn tới tab đang chọn — không animate mạnh để tránh nháy khi xóa
+    LaunchedEffect(highlight, ordered) {
+        val idx = ordered.indexOf(highlight)
+        if (idx >= 0) {
+            listState.scrollToItem(idx)
+        }
+    }
 
     Row(
         modifier = modifier.padding(horizontal = 4.dp),
@@ -70,59 +83,57 @@ fun MonthTabs(
                 tint = SheetInk,
             )
         }
-        Row(
+        LazyRow(
+            state = listState,
             modifier = Modifier
                 .weight(1f)
-                .horizontalScroll(rememberScrollState()),
+                .fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Cũ → mới (trái → phải): ← lùi tháng cũ, → tiến tháng mới
-            val ordered = months.distinct().sorted()
-            val highlight = if (ordered.contains(selected)) selected else ordered.lastOrNull()
-            ordered.forEach { month ->
-                key("${month.year}-${month.month}") {
-                    val active = month == highlight
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (active) AccentGreen else ChipIdle)
-                            .border(
-                                width = if (active) 0.dp else 1.dp,
-                                color = SheetLine,
-                                shape = RoundedCornerShape(12.dp),
-                            )
-                            .padding(
-                                start = 10.dp,
-                                end = if (canDelete) 2.dp else 10.dp,
-                                top = 4.dp,
-                                bottom = 4.dp,
-                            ),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(0.dp),
-                    ) {
-                        Text(
-                            text = sheet.tabLabel(month),
-                            modifier = Modifier
-                                .clickable { onSelect(month) }
-                                .padding(vertical = 4.dp, horizontal = 2.dp),
-                            color = if (active) Color.White else SheetInk,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+            items(
+                items = ordered,
+                key = { m -> "${m.year}-${m.month}" },
+            ) { month ->
+                val active = month == highlight
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (active) AccentGreen else ChipIdle)
+                        .border(
+                            width = if (active) 0.dp else 1.dp,
+                            color = SheetLine,
+                            shape = RoundedCornerShape(12.dp),
                         )
-                        if (canDelete) {
-                            IconButton(
-                                onClick = { pendingDelete = month },
-                                modifier = Modifier.size(28.dp),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Close,
-                                    contentDescription = deleteLabel,
-                                    tint = if (active) Color.White.copy(alpha = 0.95f)
-                                    else AccentRed.copy(alpha = 0.8f),
-                                    modifier = Modifier.size(16.dp),
-                                )
-                            }
+                        .padding(
+                            start = 10.dp,
+                            end = if (canDelete && active) 2.dp else 10.dp,
+                            top = 4.dp,
+                            bottom = 4.dp,
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = sheet.tabLabel(month),
+                        modifier = Modifier
+                            .clickable { onSelect(month) }
+                            .padding(vertical = 4.dp, horizontal = 2.dp),
+                        color = if (active) Color.White else SheetInk,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                    )
+                    // X chỉ trên tháng đang chọn — ít nhảy layout khi xóa
+                    if (canDelete && active) {
+                        IconButton(
+                            onClick = { pendingDelete = month },
+                            modifier = Modifier.size(28.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = deleteLabel,
+                                tint = Color.White.copy(alpha = 0.95f),
+                                modifier = Modifier.size(16.dp),
+                            )
                         }
                     }
                 }

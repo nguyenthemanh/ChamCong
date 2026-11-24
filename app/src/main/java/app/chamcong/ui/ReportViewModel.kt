@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 data class ReportUiState(
     val selectedMonth: MonthKey = MonthKey.current(),
@@ -199,7 +200,7 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
                     ?: remaining.last()
             }
             val shown = remaining.ifEmpty { listOf(preview) }
-            // List + selected cùng lúc; giữ override đến khi DataStore kịp — hết nháy.
+            // List + selected cùng lúc; giữ override đến khi DataStore khớp hệt.
             monthsOverride.value = shown
             selectedMonth.value = preview
             runCatching {
@@ -207,8 +208,12 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
                 if (next != selectedMonth.value) {
                     selectedMonth.value = next
                 }
-                // Chờ knownMonths không còn tháng đã xóa rồi mới bỏ override
-                repo.knownMonths.first { list -> !list.contains(month) }
+                val want = shown.toSet()
+                withTimeoutOrNull(2_000) {
+                    repo.knownMonths.first { list ->
+                        !list.contains(month) && list.toSet() == want
+                    }
+                }
             }
             monthsOverride.value = null
         }

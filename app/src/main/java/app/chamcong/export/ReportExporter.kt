@@ -198,7 +198,8 @@ object ReportExporter {
         y += 18f
 
         val showFlag = settings.flagEnabled
-        val showOt = settings.overtimeEnabled
+        // Không có giờ tăng ca nào → bỏ hẳn cột/hàng tăng ca khỏi bản in
+        val showOt = settings.overtimeEnabled && summary.overtimeMinutes > 0
         val tableLeft = margin
         val tableRight = width - margin
         val colDay = 70f
@@ -312,17 +313,7 @@ object ReportExporter {
             textAlign = Paint.Align.CENTER
         }
         val daysText = "${summary.workDays}${sheet.workDaysSuffix.trim()}"
-        val otDisplay = when {
-            !showOt -> ""
-            summary.overtimeMinutes > 0 -> sheet.formatDuration(summary.overtimeMinutes)
-            else -> when (settings.sheetLanguage) {
-                app.chamcong.data.AppLanguage.JA -> "0分"
-                app.chamcong.data.AppLanguage.KO -> "0분"
-                app.chamcong.data.AppLanguage.ZH_TW -> "0分"
-                app.chamcong.data.AppLanguage.VI -> "0 phút"
-                app.chamcong.data.AppLanguage.EN -> "0 minutes"
-            }
-        }
+        val otDisplay = sheet.formatDuration(summary.overtimeMinutes)
 
         fun drawLabeledBox(left: Float, right: Float, label: String, value: String) {
             canvas.drawRect(left, boxTop, right, boxBottom, fillCell)
@@ -333,7 +324,7 @@ object ReportExporter {
 
         // Tổng ngày làm — thẳng cột công trường
         drawLabeledBox(x2, siteRight, sheet.totalWorkDays, daysText)
-        // Tổng giờ tăng ca — thẳng cột cạnh công trường
+        // Tổng giờ tăng ca — chỉ khi tháng có OT
         if (showOt) {
             drawLabeledBox(otLeft, otRight, sheet.totalOt, otDisplay)
             canvas.drawLine(otLeft, boxTop, otLeft, boxBottom, line)
