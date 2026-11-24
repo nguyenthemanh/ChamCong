@@ -40,6 +40,10 @@
             <meta-data
                 android:name="android.supports_size_changes"
                 android:value="true" />
+            <!-- Large / foldable screens: allow freeform resize across cover ↔ inner. -->
+            <property
+                android:name="android.window.PROPERTY_ACTIVITY_EMBEDDING_SPLITS_ENABLED"
+                android:value="false" />
         </activity>
 
         <provider
