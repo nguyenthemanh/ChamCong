@@ -211,7 +211,7 @@ private fun CoverScreenLayout(
     onPrev: () -> Unit,
     onNext: () -> Unit,
     onDeleteMonth: (MonthKey) -> Unit,
-    onDayChange: (Int, String, Boolean) -> Unit,
+    onDayChange: (Int, String, Boolean, Int) -> Unit,
 ) {
     Scaffold(
         modifier = Modifier
@@ -303,7 +303,7 @@ private fun UnfoldedBookLayout(
     onPrev: () -> Unit,
     onNext: () -> Unit,
     onDeleteMonth: (MonthKey) -> Unit,
-    onDayChange: (Int, String, Boolean) -> Unit,
+    onDayChange: (Int, String, Boolean, Int) -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -452,7 +452,7 @@ private fun TabletopLayout(
     onPrev: () -> Unit,
     onNext: () -> Unit,
     onDeleteMonth: (MonthKey) -> Unit,
-    onDayChange: (Int, String, Boolean) -> Unit,
+    onDayChange: (Int, String, Boolean, Int) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -528,7 +528,7 @@ private fun DaysPane(
     sheet: SheetLabels,
     settings: PaySettings,
     exporting: Boolean,
-    onDayChange: (Int, String, Boolean) -> Unit,
+    onDayChange: (Int, String, Boolean, Int) -> Unit,
     modifier: Modifier = Modifier,
     monthKey: MonthKey? = null,
 ) {
@@ -557,7 +557,9 @@ private fun DaysPane(
                         sheet = sheet,
                         settings = settings,
                         monthKey = month,
-                        onChange = { site, flag -> onDayChange(row.day, site, flag) },
+                        confirmLabel = Strings.of(settings.language).save,
+                        cancelLabel = Strings.of(settings.language).cancel,
+                        onChange = { site, flag, ot -> onDayChange(row.day, site, flag, ot) },
                     )
                 }
                 item { Spacer(Modifier.height(12.dp)) }
@@ -780,6 +782,7 @@ private fun TableHeader(sheet: SheetLabels, flagColumn: String, showFlag: Boolea
         Text(sheet.colDay, Modifier.width(28.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
         Text(sheet.colWeekday, Modifier.width(36.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
         Text(sheet.colSite, Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        Text(sheet.colOt, Modifier.width(54.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
         if (showFlag) {
             Text(flagColumn, Modifier.width(72.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
         }

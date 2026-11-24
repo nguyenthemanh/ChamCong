@@ -12,8 +12,8 @@ android {
         applicationId = "app.chamcong"
         minSdk = 26
         targetSdk = 35
-        versionCode = 16
-        versionName = "1.4.6"
+        versionCode = 17
+        versionName = "1.4.7"
         buildConfigField("String", "GITHUB_REPO", "\"nguyenthemanh/ChamCong\"")
         buildConfigField("String", "AUTHOR_NAME", "\"Nguyễn Thế Mạnh\"")
         buildConfigField("String", "AUTHOR_URL", "\"https://www.facebook.com/nnguyenthemanh\"")

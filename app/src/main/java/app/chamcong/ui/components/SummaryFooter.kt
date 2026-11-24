@@ -74,7 +74,13 @@ private fun SummaryBarLayout(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SummaryChip(ui.summaryWorkDays, summary.workDaysText(sheet.workDaysSuffix.trim()))
+            SummaryChip(
+                ui.summaryWorkDays,
+                summary.workDaysText(
+                    sheet.workDaysSuffix.trim(),
+                    sheet.formatDuration(summary.overtimeMinutes),
+                ),
+            )
             if (settings.flagEnabled) {
                 SummaryChip(ui.summaryFlagDays.format(flagName), summary.flagDays.toString())
             }
@@ -130,7 +136,13 @@ private fun SummaryPanelLayout(
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        PanelRow(ui.summaryWorkDays, summary.workDaysText(sheet.workDaysSuffix.trim()))
+        PanelRow(
+            ui.summaryWorkDays,
+            summary.workDaysText(
+                sheet.workDaysSuffix.trim(),
+                sheet.formatDuration(summary.overtimeMinutes),
+            ),
+        )
         if (settings.flagEnabled) {
             PanelRow(ui.summaryFlagDays.format(flagName), summary.flagDays.toString())
         }

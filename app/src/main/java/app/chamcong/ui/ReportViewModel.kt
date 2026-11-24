@@ -200,10 +200,18 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun updateDay(day: Int, site: String, hasFlag: Boolean) {
+    fun updateDay(day: Int, site: String, hasFlag: Boolean, overtimeMinutes: Int = 0) {
         val month = selectedMonth.value
         viewModelScope.launch {
-            repo.updateEntry(month, DayEntry(day = day, site = site, hasFlag = hasFlag))
+            repo.updateEntry(
+                month,
+                DayEntry(
+                    day = day,
+                    site = site,
+                    hasFlag = hasFlag,
+                    overtimeMinutes = overtimeMinutes.coerceIn(0, 12 * 60),
+                ),
+            )
         }
     }
 

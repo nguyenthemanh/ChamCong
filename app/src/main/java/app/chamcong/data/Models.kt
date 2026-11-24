@@ -14,12 +14,8 @@ data class DayEntry(
 ) {
     val isRest: Boolean get() = WorkRules.isRestSite(site)
     val isWorked: Boolean get() = site.isNotBlank() && !isRest
-    /** Effective OT minutes — field first, else legacy `+Nh` in site text. */
-    val effectiveOvertimeMinutes: Int
-        get() = when {
-            overtimeMinutes > 0 -> overtimeMinutes
-            else -> WorkRules.parseOvertimeHours(site) * 60
-        }
+    /** OT minutes for UI / pay / print (legacy `+Nh` in site is migrated on load). */
+    val effectiveOvertimeMinutes: Int get() = overtimeMinutes.coerceAtLeast(0)
 }
 
 data class MonthKey(val year: Int, val month: Int) : Comparable<MonthKey> {

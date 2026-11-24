@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -223,19 +224,21 @@ private fun MonthSnapList(
                         fontSize = if (active) 16.sp else 14.sp,
                         style = MaterialTheme.typography.labelLarge,
                     )
-                    // X cạnh tháng đang chọn — cùng kiểu màn ngoài
-                    if (onDeleteClick != null && active) {
-                        Icon(
-                            imageVector = Icons.Filled.Close,
-                            contentDescription = deleteLabel,
-                            tint = AccentRed,
-                            modifier = Modifier
-                                .size(22.dp)
-                                .clickable { onDeleteClick(month) }
-                                .padding(2.dp),
-                        )
+                    // Dấu X cạnh tháng (rõ khi đang chọn) — cùng kiểu màn ngoài
+                    if (onDeleteClick != null) {
+                        IconButton(
+                            onClick = { onDeleteClick(month) },
+                            modifier = Modifier.size(28.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = deleteLabel,
+                                tint = if (active) AccentRed else AccentRed.copy(alpha = 0.35f),
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
                     } else {
-                        Box(Modifier.size(22.dp))
+                        Box(Modifier.size(28.dp))
                     }
                 }
             }

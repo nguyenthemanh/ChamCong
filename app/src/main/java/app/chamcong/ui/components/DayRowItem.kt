@@ -36,7 +36,9 @@ import androidx.compose.ui.unit.sp
 import app.chamcong.data.DayRow
 import app.chamcong.data.MonthKey
 import app.chamcong.data.PaySettings
+import app.chamcong.data.SheetLabelFactory
 import app.chamcong.data.SheetLabels
+import app.chamcong.ui.theme.AccentGreen
 import app.chamcong.ui.theme.ChipActive
 import app.chamcong.ui.theme.ChipIdle
 import app.chamcong.ui.theme.SaturdayWash
@@ -50,12 +52,16 @@ fun DayRowItem(
     row: DayRow,
     sheet: SheetLabels,
     settings: PaySettings,
-    onChange: (site: String, hasFlag: Boolean) -> Unit,
+    onChange: (site: String, hasFlag: Boolean, overtimeMinutes: Int) -> Unit,
+    confirmLabel: String,
+    cancelLabel: String,
     modifier: Modifier = Modifier,
     monthKey: MonthKey? = null,
 ) {
     var siteText by remember(monthKey, row.day, row.entry.site) { mutableStateOf(row.entry.site) }
     var focused by remember(monthKey, row.day) { mutableStateOf(false) }
+    var showOtPicker by remember(monthKey, row.day) { mutableStateOf(false) }
+    val otMinutes = row.entry.effectiveOvertimeMinutes
 
     val bg by animateColorAsState(
         targetValue = when {
@@ -95,7 +101,8 @@ fun DayRowItem(
             value = siteText,
             onValueChange = {
                 siteText = it
-                onChange(it, row.entry.hasFlag)
+                val ot = if (it.isBlank()) 0 else otMinutes
+                onChange(it, if (it.isBlank()) false else row.entry.hasFlag, ot)
             },
             singleLine = true,
             textStyle = TextStyle(
@@ -129,6 +136,12 @@ fun DayRowItem(
                 }
             },
         )
+        // Cột tăng ca giữa site và nhãn — nhấn mở bánh xe HH:MM
+        OtCell(
+            minutes = otMinutes,
+            enabled = siteText.isNotBlank(),
+            onClick = { if (siteText.isNotBlank()) showOtPicker = true },
+        )
         if (settings.flagEnabled) {
             FlagChip(
                 labelIdle = settings.flagLabelOff,
@@ -137,11 +150,69 @@ fun DayRowItem(
                 active = row.entry.hasFlag && siteText.isNotBlank(),
                 onClick = {
                     if (siteText.isNotBlank()) {
-                        onChange(siteText, !row.entry.hasFlag)
+                        onChange(siteText, !row.entry.hasFlag, otMinutes)
                     }
                 },
             )
         }
+    }
+
+    if (showOtPicker) {
+        OvertimePickerDialog(
+            initialMinutes = otMinutes,
+            sheet = sheet,
+            title = sheet.colOt,
+            confirmLabel = confirmLabel,
+            cancelLabel = cancelLabel,
+            onConfirm = { mins ->
+                showOtPicker = false
+                onChange(siteText, row.entry.hasFlag, mins)
+            },
+            onDismiss = { showOtPicker = false },
+        )
+    }
+}
+
+@Composable
+private fun OtCell(
+    minutes: Int,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val hasOt = minutes > 0
+    val bg by animateColorAsState(
+        targetValue = when {
+            !enabled -> ChipIdle.copy(alpha = 0.5f)
+            hasOt -> AccentGreen.copy(alpha = 0.16f)
+            else -> ChipIdle
+        },
+        label = "otBg",
+    )
+    Box(
+        modifier = Modifier
+            .width(54.dp)
+            .height(32.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(bg)
+            .border(
+                width = 1.dp,
+                color = if (hasOt) AccentGreen.copy(alpha = 0.4f) else SheetLine,
+                shape = RoundedCornerShape(8.dp),
+            )
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = if (hasOt) SheetLabelFactory.formatHhMm(minutes) else "—:—",
+            color = when {
+                !enabled -> SheetMuted.copy(alpha = 0.4f)
+                hasOt -> AccentGreen
+                else -> SheetMuted
+            },
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (hasOt) FontWeight.Bold else FontWeight.Medium,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 

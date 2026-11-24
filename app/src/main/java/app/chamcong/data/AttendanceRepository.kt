@@ -89,8 +89,10 @@ class AttendanceRepository(private val context: Context) {
             val cleaned = entry.copy(
                 site = entry.site.trim(),
                 hasFlag = entry.hasFlag && entry.site.isNotBlank() && !WorkRules.isRestSite(entry.site.trim()),
+                overtimeMinutes = entry.overtimeMinutes.coerceIn(0, 12 * 60),
             )
-            if (cleaned.site.isBlank() && !cleaned.hasFlag) {
+            val empty = cleaned.site.isBlank() && !cleaned.hasFlag && cleaned.overtimeMinutes <= 0
+            if (empty) {
                 map.remove(cleaned.day)
             } else {
                 map[cleaned.day] = cleaned
@@ -205,12 +207,19 @@ class AttendanceRepository(private val context: Context) {
                 for (i in 0 until arr.length()) {
                     val o = arr.getJSONObject(i)
                     val day = o.getInt("d")
+                    val site = o.optString("s", "")
+                    val ot = if (o.has("ot")) {
+                        o.optInt("ot", 0).coerceIn(0, 12 * 60)
+                    } else {
+                        WorkRules.parseOvertimeHours(site) * 60
+                    }
                     put(
                         day,
                         DayEntry(
                             day = day,
-                            site = o.optString("s", ""),
+                            site = site,
                             hasFlag = o.optBoolean("drv", false) || o.optBoolean("flag", false),
+                            overtimeMinutes = ot,
                         ),
                     )
                 }
@@ -228,7 +237,8 @@ class AttendanceRepository(private val context: Context) {
                     .put("d", e.day)
                     .put("s", e.site)
                     .put("flag", e.hasFlag)
-                    .put("drv", e.hasFlag),
+                    .put("drv", e.hasFlag)
+                    .put("ot", e.overtimeMinutes.coerceIn(0, 12 * 60)),
             )
         }
         return arr.toString()
