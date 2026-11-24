@@ -94,10 +94,13 @@ private fun SummaryBarLayout(
             if (settings.salaryEnabled) {
                 Row(
                     modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     MoneyTiny(ui.payGross, summary.grossYen.formatMoney(currency))
+                    if (settings.overtimeEnabled && summary.otPayYen > 0) {
+                        MoneyTiny(ui.payOt, summary.otPayYen.formatMoney(currency))
+                    }
                     MoneyTiny(ui.payDeduction, "−${summary.deductionYen.formatMoney(currency)}", Color(0xFFFFE082))
                     MoneyTiny(ui.payNet, summary.netYen.formatMoney(currency), bold = true)
                 }
@@ -106,10 +109,19 @@ private fun SummaryBarLayout(
         if (settings.salaryEnabled) {
             Text(
                 text = ui.payFormulaLine(
-                    summary.grossYen,
-                    summary.deductionYen,
-                    summary.netYen,
-                    currency,
+                    workDays = summary.workDays,
+                    dailyWageYen = settings.dailyWageYen,
+                    otEnabled = settings.overtimeEnabled,
+                    otDuration = sheet.formatDuration(summary.overtimeMinutes),
+                    otHourYen = settings.overtimeHourYen,
+                    otPayYen = summary.otPayYen,
+                    flagEnabled = settings.flagEnabled,
+                    flagDays = summary.flagDays,
+                    flagBonusYen = settings.flagBonusYen,
+                    flagPayYen = summary.flagPayYen,
+                    deductionYen = summary.deductionYen,
+                    netYen = summary.netYen,
+                    currency = currency,
                 ),
                 color = Color.White.copy(alpha = 0.65f),
                 fontSize = 10.sp,
@@ -163,8 +175,34 @@ private fun SummaryPanelLayout(
         if (settings.salaryEnabled) {
             HorizontalDivider(color = Color.White.copy(alpha = 0.18f), thickness = 0.5.dp)
             PanelRow(ui.payGross, summary.grossYen.formatMoney(currency))
+            if (settings.overtimeEnabled && summary.otPayYen > 0) {
+                PanelRow(ui.payOt, summary.otPayYen.formatMoney(currency))
+            }
             PanelRow(ui.payDeduction, "−${summary.deductionYen.formatMoney(currency)}", Color(0xFFFFE082))
             PanelRow(ui.payNet, summary.netYen.formatMoney(currency), bold = true)
+            Text(
+                text = ui.payFormulaLine(
+                    workDays = summary.workDays,
+                    dailyWageYen = settings.dailyWageYen,
+                    otEnabled = settings.overtimeEnabled,
+                    otDuration = sheet.formatDuration(summary.overtimeMinutes),
+                    otHourYen = settings.overtimeHourYen,
+                    otPayYen = summary.otPayYen,
+                    flagEnabled = settings.flagEnabled,
+                    flagDays = summary.flagDays,
+                    flagBonusYen = settings.flagBonusYen,
+                    flagPayYen = summary.flagPayYen,
+                    deductionYen = summary.deductionYen,
+                    netYen = summary.netYen,
+                    currency = currency,
+                ),
+                color = Color.White.copy(alpha = 0.55f),
+                fontSize = 10.sp,
+                lineHeight = 12.sp,
+                modifier = Modifier.fillMaxWidth(),
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

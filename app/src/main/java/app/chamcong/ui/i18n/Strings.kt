@@ -37,6 +37,7 @@ data class AppStrings(
     val monthlyDeduction: String,
     val monthlyDeductionHint: String,
     val payGross: String,
+    val payOt: String,
     val payDeduction: String,
     val payNet: String,
     /** In-app summary strip only — not used on PDF/JPG export. */
@@ -86,13 +87,40 @@ data class AppStrings(
     val updateFail: String,
     val updateNeedInstallPerm: String,
 ) {
+    /**
+     * Breakdown khớp tính lương: ngày×đơn giá + tăng ca (+ nhãn) − khấu trừ = thực nhận.
+     * [otDuration] = chữ vùng (vd. "1 giờ 30 phút").
+     */
     fun payFormulaLine(
-        grossYen: Long,
+        workDays: Int,
+        dailyWageYen: Long,
+        otEnabled: Boolean,
+        otDuration: String,
+        otHourYen: Long,
+        otPayYen: Long,
+        flagEnabled: Boolean,
+        flagDays: Int,
+        flagBonusYen: Long,
+        flagPayYen: Long,
         deductionYen: Long,
         netYen: Long,
         currency: String,
-    ): String =
-        "${grossYen.formatMoney(currency)} − ($payDeduction ~${deductionYen.formatMoney(currency)}) = ${netYen.formatMoney(currency)}"
+    ): String {
+        val parts = mutableListOf<String>()
+        parts.add("$workDays×${dailyWageYen.formatMoney(currency)}")
+        if (otEnabled && otPayYen > 0) {
+            val otPart = if (otDuration.isNotBlank()) {
+                "$otDuration×${otHourYen.formatMoney(currency)}"
+            } else {
+                otPayYen.formatMoney(currency)
+            }
+            parts.add(otPart)
+        }
+        if (flagEnabled && flagPayYen > 0) {
+            parts.add("$flagDays×${flagBonusYen.formatMoney(currency)}")
+        }
+        return "${parts.joinToString(" + ")} − ${deductionYen.formatMoney(currency)} = ${netYen.formatMoney(currency)}"
+    }
 
     fun dailyWageLabel(currency: String) = "$dailyWage ($currency)"
     fun overtimeHourLabel(currency: String) = "$overtimeHour ($currency)"
@@ -137,6 +165,7 @@ object Strings {
             monthlyDeduction = "Khấu trừ cố định mỗi tháng",
             monthlyDeductionHint = "Số trừ cố định trên tổng lương (đơn vị: %1\$s).",
             payGross = "Tổng",
+            payOt = "Tăng ca",
             payDeduction = "Khấu trừ",
             payNet = "Thực nhận",
             summaryWorkDays = "Ngày công",
@@ -219,6 +248,7 @@ object Strings {
             monthlyDeduction = "毎月の定額控除",
             monthlyDeductionHint = "総支給から毎月差し引く定額（単位: %1\$s）。",
             payGross = "総支給",
+            payOt = "残業代",
             payDeduction = "控除",
             payNet = "差引支給",
             summaryWorkDays = "出勤日数",
@@ -301,6 +331,7 @@ object Strings {
             monthlyDeduction = "매월 고정 공제",
             monthlyDeductionHint = "총지급에서 매월 빼는 고정액 (단위: %1\$s).",
             payGross = "총지급",
+            payOt = "잔업수당",
             payDeduction = "공제",
             payNet = "실수령",
             summaryWorkDays = "근무일수",
@@ -383,6 +414,7 @@ object Strings {
             monthlyDeduction = "每月固定扣款",
             monthlyDeductionHint = "每月從總薪資扣除的固定金額（單位: %1\$s）。",
             payGross = "總薪資",
+            payOt = "加班費",
             payDeduction = "扣款",
             payNet = "實領",
             summaryWorkDays = "出勤天數",
@@ -465,6 +497,7 @@ object Strings {
             monthlyDeduction = "Fixed monthly deduction",
             monthlyDeductionHint = "Fixed amount taken from gross each month (unit: %1\$s).",
             payGross = "Gross",
+            payOt = "Overtime pay",
             payDeduction = "Deduction",
             payNet = "Net",
             summaryWorkDays = "Work days",

@@ -90,9 +90,15 @@ data class MonthSummary(
     val workDays: Int,
     val overtimeMinutes: Int,
     val flagDays: Int,
-    val grossYen: Long,
-    val deductionYen: Long,
-    val netYen: Long,
+    /** workDays × dailyWage */
+    val workPayYen: Long = 0L,
+    /** (overtimeMinutes / 60) × overtimeHourYen — 0 if OT off */
+    val otPayYen: Long = 0L,
+    /** flagDays × flagBonus — 0 if flag off */
+    val flagPayYen: Long = 0L,
+    val grossYen: Long = 0L,
+    val deductionYen: Long = 0L,
+    val netYen: Long = 0L,
 ) {
     /** Excel D36 style: `16日` or `16日 +1時間30分` */
     fun workDaysText(suffix: String = "日", otLabel: String = ""): String {
@@ -149,28 +155,40 @@ object CalendarFactory {
         } else {
             0
         }
-        if (!settings.salaryEnabled) {
-            return MonthSummary(
-                workDays = workDays,
-                overtimeMinutes = overtimeMinutes,
-                flagDays = flagDays,
-                grossYen = 0L,
-                deductionYen = 0L,
-                netYen = 0L,
-            )
+        val workPay = workDays.toLong() * settings.dailyWageYen
+        val flagPay = if (settings.flagEnabled) {
+            flagDays.toLong() * settings.flagBonusYen
+        } else {
+            0L
         }
-        val flagPay = if (settings.flagEnabled) flagDays * settings.flagBonusYen else 0L
+        // Khớp đơn giá / giờ: phút × (yen/giờ) / 60
         val otPay = if (settings.overtimeEnabled) {
             (overtimeMinutes.toLong() * settings.overtimeHourYen) / 60L
         } else {
             0L
         }
-        val gross = workDays * settings.dailyWageYen + otPay + flagPay
+        if (!settings.salaryEnabled) {
+            return MonthSummary(
+                workDays = workDays,
+                overtimeMinutes = overtimeMinutes,
+                flagDays = flagDays,
+                workPayYen = 0L,
+                otPayYen = 0L,
+                flagPayYen = 0L,
+                grossYen = 0L,
+                deductionYen = 0L,
+                netYen = 0L,
+            )
+        }
+        val gross = workPay + otPay + flagPay
         val deduction = settings.monthlyDeductionYen
         return MonthSummary(
             workDays = workDays,
             overtimeMinutes = overtimeMinutes,
             flagDays = flagDays,
+            workPayYen = workPay,
+            otPayYen = otPay,
+            flagPayYen = flagPay,
             grossYen = gross,
             deductionYen = deduction,
             netYen = gross - deduction,
