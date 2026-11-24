@@ -228,7 +228,7 @@ fun SettingsDialog(
                             applyRegionExamples(sheetLanguage, next)
                             sheetLanguage = next
                         },
-                        useCountryLabel = true,
+                        countryLabelIn = language,
                     )
 
                     SettingsCardDivider()

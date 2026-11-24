@@ -250,15 +250,22 @@ fun SettingsNumberField(
 fun SettingsLanguageRadios(
     selected: AppLanguage,
     onSelect: (AppLanguage) -> Unit,
-    /** false = app language names; true = fixed country names for region. */
-    useCountryLabel: Boolean = false,
+    /**
+     * When set, show country/region names translated in this UI language.
+     * Null = show app-language names (Tiếng Việt, 日本語, …).
+     */
+    countryLabelIn: AppLanguage? = null,
 ) {
     Column {
         AppLanguage.entries.forEachIndexed { index, lang ->
             if (index > 0) {
                 HorizontalDivider(color = SheetLine.copy(alpha = 0.55f), thickness = 0.5.dp)
             }
-            val itemLabel = if (useCountryLabel) lang.countryLabel else lang.label
+            val itemLabel = if (countryLabelIn != null) {
+                lang.countryLabel(countryLabelIn)
+            } else {
+                lang.label
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
