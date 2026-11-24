@@ -3,13 +3,12 @@ package app.chamcong.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -29,16 +28,38 @@ import app.chamcong.data.SheetLabels
 import app.chamcong.ui.i18n.Strings
 import app.chamcong.ui.theme.SummaryBar
 
-/** Compact in-app summary strip — PDF/JPG export stays numeric-only as before. */
+enum class SummaryVariant {
+    /** Phone cover / bottom bar — horizontal chips. */
+    Bar,
+    /** Fold inner left rail — stacked rows, no empty stretch. */
+    Panel,
+}
+
+/** In-app summary only — PDF/JPG export stays numeric-only as before. */
 @Composable
 fun SummaryFooter(
     summary: MonthSummary,
     sheet: SheetLabels,
     settings: PaySettings,
     modifier: Modifier = Modifier,
+    variant: SummaryVariant = SummaryVariant.Bar,
+) {
+    when (variant) {
+        SummaryVariant.Bar -> SummaryBarLayout(summary, sheet, settings, modifier)
+        SummaryVariant.Panel -> SummaryPanelLayout(summary, sheet, settings, modifier)
+    }
+}
+
+@Composable
+private fun SummaryBarLayout(
+    summary: MonthSummary,
+    sheet: SheetLabels,
+    settings: PaySettings,
+    modifier: Modifier,
 ) {
     val ui = Strings.of(settings.language)
     val currency = sheet.currencySuffix
+    val flagName = flagCaptionForAppLanguage(settings)
 
     Column(
         modifier = modifier
@@ -53,66 +74,19 @@ fun SummaryFooter(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SummaryStat(
-                caption = ui.summaryWorkDays,
-                value = summary.workDaysText(sheet.workDaysSuffix.trim()),
-            )
+            SummaryChip(ui.summaryWorkDays, summary.workDaysText(sheet.workDaysSuffix.trim()))
             if (settings.flagEnabled) {
-                // 運転 + app VI → caption "Lái xe", value "5" (số ngày).
-                val flagName = flagCaptionForAppLanguage(settings)
-                SummaryStat(
-                    caption = ui.summaryFlagDays.format(flagName),
-                    value = summary.flagDays.toString(),
-                )
+                SummaryChip(ui.summaryFlagDays.format(flagName), summary.flagDays.toString())
             }
             if (settings.salaryEnabled) {
-                Column(
+                Row(
                     modifier = Modifier.weight(1f),
-                    horizontalAlignment = Alignment.End,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = ui.payGross,
-                        color = Color.White.copy(alpha = 0.55f),
-                        fontSize = 9.sp,
-                        maxLines = 1,
-                    )
-                    Text(
-                        text = summary.grossYen.formatMoney(currency),
-                        color = Color.White.copy(alpha = 0.88f),
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = ui.payDeduction,
-                        color = Color.White.copy(alpha = 0.55f),
-                        fontSize = 9.sp,
-                        maxLines = 1,
-                    )
-                    Text(
-                        text = "−${summary.deductionYen.formatMoney(currency)}",
-                        color = Color(0xFFFFE082),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                    )
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = ui.payNet,
-                        color = Color.White.copy(alpha = 0.55f),
-                        fontSize = 9.sp,
-                        maxLines = 1,
-                    )
-                    Text(
-                        text = summary.netYen.formatMoney(currency),
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                    )
+                    MoneyTiny(ui.payGross, summary.grossYen.formatMoney(currency))
+                    MoneyTiny(ui.payDeduction, "−${summary.deductionYen.formatMoney(currency)}", Color(0xFFFFE082))
+                    MoneyTiny(ui.payNet, summary.netYen.formatMoney(currency), bold = true)
                 }
             }
         }
@@ -136,10 +110,117 @@ fun SummaryFooter(
     }
 }
 
-/**
- * If the stored label is still a built-in default from any region,
- * show the equivalent name in the app UI language. Custom names stay as typed.
- */
+/** Narrow side panel: every row filled — no empty green hole, no overlap. */
+@Composable
+private fun SummaryPanelLayout(
+    summary: MonthSummary,
+    sheet: SheetLabels,
+    settings: PaySettings,
+    modifier: Modifier,
+) {
+    val ui = Strings.of(settings.language)
+    val currency = sheet.currencySuffix
+    val flagName = flagCaptionForAppLanguage(settings)
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(SummaryBar)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        PanelRow(ui.summaryWorkDays, summary.workDaysText(sheet.workDaysSuffix.trim()))
+        if (settings.flagEnabled) {
+            PanelRow(ui.summaryFlagDays.format(flagName), summary.flagDays.toString())
+        }
+        if (settings.salaryEnabled) {
+            HorizontalDivider(color = Color.White.copy(alpha = 0.18f), thickness = 0.5.dp)
+            PanelRow(ui.payGross, summary.grossYen.formatMoney(currency))
+            PanelRow(ui.payDeduction, "−${summary.deductionYen.formatMoney(currency)}", Color(0xFFFFE082))
+            PanelRow(ui.payNet, summary.netYen.formatMoney(currency), bold = true)
+        }
+    }
+}
+
+@Composable
+private fun PanelRow(
+    label: String,
+    value: String,
+    valueColor: Color = Color.White,
+    bold: Boolean = false,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            color = Color.White.copy(alpha = 0.7f),
+            fontSize = 12.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = value,
+            color = valueColor,
+            fontSize = 14.sp,
+            fontWeight = if (bold) FontWeight.Bold else FontWeight.SemiBold,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun SummaryChip(caption: String, value: String) {
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.White.copy(alpha = 0.12f))
+            .border(0.5.dp, Color.White.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = caption,
+            color = Color.White.copy(alpha = 0.6f),
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = value,
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun MoneyTiny(
+    label: String,
+    value: String,
+    valueColor: Color = Color.White,
+    bold: Boolean = false,
+) {
+    Column(horizontalAlignment = Alignment.End) {
+        Text(label, color = Color.White.copy(alpha = 0.55f), fontSize = 9.sp, maxLines = 1)
+        Text(
+            value,
+            color = valueColor,
+            fontSize = if (bold) 12.sp else 11.sp,
+            fontWeight = if (bold) FontWeight.Bold else FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
 private fun flagCaptionForAppLanguage(settings: PaySettings): String {
     val raw = settings.flagLabelOff.trim()
         .ifBlank { settings.flagLabelOn.trim() }
@@ -152,35 +233,4 @@ private fun flagCaptionForAppLanguage(settings: PaySettings): String {
             raw.equals(s.colDriving, ignoreCase = true)
     }
     return if (isBuiltIn) uiSheet.driving else raw
-}
-
-@Composable
-private fun SummaryStat(caption: String, value: String) {
-    Column(
-        modifier = Modifier
-            .widthIn(min = 56.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color.White.copy(alpha = 0.12f))
-            .border(0.5.dp, Color.White.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
-            .padding(horizontal = 10.dp, vertical = 5.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = caption,
-            color = Color.White.copy(alpha = 0.6f),
-            fontSize = 9.sp,
-            fontWeight = FontWeight.Medium,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = value,
-            color = Color.White,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-        )
-    }
 }

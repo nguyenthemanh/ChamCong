@@ -42,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -57,9 +58,11 @@ import app.chamcong.ui.components.MonthTabs
 import app.chamcong.ui.components.SettingsDialog
 import app.chamcong.ui.components.ShareDialog
 import app.chamcong.ui.components.SummaryFooter
+import app.chamcong.ui.components.SummaryVariant
 import app.chamcong.ui.i18n.AppStrings
 import app.chamcong.ui.i18n.Strings
 import app.chamcong.ui.theme.AccentGreen
+import app.chamcong.ui.theme.ChipIdle
 import app.chamcong.ui.theme.SheetHeader
 import app.chamcong.ui.theme.SheetInk
 import app.chamcong.ui.theme.SheetLine
@@ -270,8 +273,8 @@ private fun CoverScreenLayout(
 }
 
 /**
- * Inner unfolded (book): left rail = identity / months / summary / actions;
- * right pane = full day sheet. Different structure, not a scaled cover.
+ * Inner unfolded (book): compact left rail + wide day sheet.
+ * Not a scaled cover — rail is narrow and fully filled (no empty green hole).
  */
 @Composable
 private fun UnfoldedBookLayout(
@@ -295,51 +298,89 @@ private fun UnfoldedBookLayout(
             .background(SheetPaper)
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(pad),
+            .padding(horizontal = pad, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(0.dp),
     ) {
         Column(
             modifier = Modifier
-                .width(300.dp)
+                .width(220.dp)
                 .fillMaxHeight()
-                .clip(RoundedCornerShape(16.dp))
-                .background(SheetHeader.copy(alpha = 0.55f))
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+                .clip(RoundedCornerShape(18.dp))
+                .background(ChipIdle)
+                .border(1.dp, SheetLine, RoundedCornerShape(18.dp))
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                text = appNameWithLang,
-                style = MaterialTheme.typography.labelLarge,
-                color = AccentGreen,
-                fontWeight = FontWeight.SemiBold,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = ui.appTitle,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = AccentGreen,
+                    fontWeight = FontWeight.Bold,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy((-4).dp)) {
+                    IconButton(onClick = onShare, modifier = Modifier.height(36.dp)) {
+                        Icon(Icons.Outlined.Share, ui.share, tint = SheetInk)
+                    }
+                    IconButton(onClick = onSettings, modifier = Modifier.height(36.dp)) {
+                        Icon(Icons.Outlined.Settings, ui.settings, tint = SheetInk)
+                    }
+                }
+            }
             Text(
                 text = state.settings.resolvedSheetTitle(),
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleMedium,
                 color = SheetInk,
                 fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = sheet.monthLabel(state.selectedMonth),
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyMedium,
                 color = SheetMuted,
+                fontWeight = FontWeight.Medium,
             )
-            EmployeeCard(
-                namePrefix = sheet.namePrefix,
-                employeeName = state.settings.employeeName,
-                employeeKana = state.settings.employeeNameKana,
-                dense = true,
+            Text(
+                text = "${sheet.namePrefix}${state.settings.employeeName}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = SheetInk,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
-            ActionRow(
-                saveLabel = ui.save,
-                newMonthLabel = ui.newMonth,
-                shareLabel = ui.share,
-                settingsLabel = ui.settings,
-                stacked = true,
-                onSave = onSave,
-                onCreateMonth = onCreateMonth,
-                onShare = onShare,
-                onSettings = onSettings,
-            )
+            if (state.settings.employeeNameKana.isNotBlank()) {
+                Text(
+                    text = state.settings.employeeNameKana,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = SheetMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                TextButton(
+                    onClick = onCreateMonth,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("+", color = AccentGreen, fontWeight = FontWeight.Bold)
+                }
+                TextButton(
+                    onClick = onSave,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(Icons.Outlined.Save, null, tint = AccentGreen)
+                }
+            }
+
             MonthTabs(
                 months = state.months,
                 selected = state.selectedMonth,
@@ -352,40 +393,30 @@ private fun UnfoldedBookLayout(
                 modifier = Modifier.fillMaxWidth(),
             )
             UpdateStatusBanner(state.updateStatus)
-            Spacer(Modifier.weight(1f))
+
+            Spacer(Modifier.weight(1f, fill = true))
+
             SummaryFooter(
                 summary = state.summary,
                 sheet = sheet,
                 settings = state.settings,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp)),
+                variant = SummaryVariant.Panel,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
 
-        BookPaneDivider(Modifier.padding(horizontal = 8.dp))
+        BookPaneDivider(Modifier.padding(horizontal = 10.dp))
 
-        Column(
+        DaysPane(
+            rows = state.rows,
+            sheet = sheet,
+            settings = state.settings,
+            exporting = state.exporting,
+            onDayChange = onDayChange,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight(),
-        ) {
-            Text(
-                text = sheet.monthLabel(state.selectedMonth),
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = SheetInk,
-            )
-            DaysPane(
-                rows = state.rows,
-                sheet = sheet,
-                settings = state.settings,
-                exporting = state.exporting,
-                onDayChange = onDayChange,
-                modifier = Modifier.weight(1f),
-            )
-        }
+        )
     }
 }
 
