@@ -58,7 +58,7 @@ fun SummaryFooter(
                 value = summary.workDaysText(sheet.workDaysSuffix.trim()),
             )
             if (settings.flagEnabled) {
-                // Caption follows app UI language; custom text kept if user renamed it.
+                // 運転 + app VI → caption "Lái xe", value "5" (số ngày).
                 val flagName = flagCaptionForAppLanguage(settings)
                 SummaryStat(
                     caption = ui.summaryFlagDays.format(flagName),
