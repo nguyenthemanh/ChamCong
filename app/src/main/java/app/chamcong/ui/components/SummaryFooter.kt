@@ -27,7 +27,7 @@ import app.chamcong.data.SheetLabels
 import app.chamcong.ui.i18n.Strings
 import app.chamcong.ui.theme.SummaryBar
 
-/** Compact reference strip — not the main workspace. */
+/** Compact in-app summary strip — PDF/JPG export stays numeric-only as before. */
 @Composable
 fun SummaryFooter(
     summary: MonthSummary,
@@ -43,41 +43,73 @@ fun SummaryFooter(
             .fillMaxWidth()
             .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
             .background(SummaryBar)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            MiniBox(summary.workDaysText(sheet.workDaysSuffix.trim()))
+            SummaryStat(
+                caption = ui.summaryWorkDays,
+                value = summary.workDaysText(sheet.workDaysSuffix.trim()),
+            )
             if (settings.flagEnabled) {
-                MiniBox(summary.flagDays.toString())
+                SummaryStat(
+                    caption = ui.summaryFlagDays,
+                    value = summary.flagDays.toString(),
+                )
             }
             if (settings.salaryEnabled) {
-                Text(
-                    text = "${ui.payGross} ${summary.grossYen.formatMoney(currency)}",
-                    color = Color.White.copy(alpha = 0.88f),
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                Column(
                     modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = "−${summary.deductionYen.formatMoney(currency)}",
-                    color = Color(0xFFFFE082),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                )
-                Text(
-                    text = summary.netYen.formatMoney(currency),
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                )
+                    horizontalAlignment = Alignment.End,
+                ) {
+                    Text(
+                        text = ui.payGross,
+                        color = Color.White.copy(alpha = 0.55f),
+                        fontSize = 9.sp,
+                        maxLines = 1,
+                    )
+                    Text(
+                        text = summary.grossYen.formatMoney(currency),
+                        color = Color.White.copy(alpha = 0.88f),
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = ui.payDeduction,
+                        color = Color.White.copy(alpha = 0.55f),
+                        fontSize = 9.sp,
+                        maxLines = 1,
+                    )
+                    Text(
+                        text = "−${summary.deductionYen.formatMoney(currency)}",
+                        color = Color(0xFFFFE082),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = ui.payNet,
+                        color = Color.White.copy(alpha = 0.55f),
+                        fontSize = 9.sp,
+                        maxLines = 1,
+                    )
+                    Text(
+                        text = summary.netYen.formatMoney(currency),
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                    )
+                }
             }
         }
         if (settings.salaryEnabled) {
@@ -101,22 +133,32 @@ fun SummaryFooter(
 }
 
 @Composable
-private fun MiniBox(text: String) {
-    Box(
+private fun SummaryStat(caption: String, value: String) {
+    Column(
         modifier = Modifier
-            .widthIn(min = 40.dp)
-            .clip(RoundedCornerShape(4.dp))
+            .widthIn(min = 56.dp)
+            .clip(RoundedCornerShape(8.dp))
             .background(Color.White.copy(alpha = 0.12f))
-            .border(0.5.dp, Color.White.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
-            .padding(horizontal = 8.dp, vertical = 3.dp),
-        contentAlignment = Alignment.Center,
+            .border(0.5.dp, Color.White.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = text,
+            text = caption,
+            color = Color.White.copy(alpha = 0.6f),
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = value,
             color = Color.White,
-            fontSize = 12.sp,
+            fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
+            maxLines = 1,
         )
     }
 }
