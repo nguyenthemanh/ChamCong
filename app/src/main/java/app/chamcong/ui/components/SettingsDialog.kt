@@ -8,11 +8,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -23,6 +26,7 @@ import app.chamcong.data.AppLanguage
 import app.chamcong.data.PaySettings
 import app.chamcong.data.SheetLabelFactory
 import app.chamcong.ui.i18n.Strings
+import app.chamcong.ui.theme.AccentRed
 import app.chamcong.ui.theme.SheetMuted
 
 @Composable
@@ -30,6 +34,7 @@ fun SettingsDialog(
     settings: PaySettings,
     onDismiss: () -> Unit,
     onSave: (PaySettings) -> Unit,
+    onClearAllData: () -> Unit,
 ) {
     var name by remember(settings) { mutableStateOf(settings.employeeName) }
     var kana by remember(settings) { mutableStateOf(settings.employeeNameKana) }
@@ -46,6 +51,8 @@ fun SettingsDialog(
     var language by remember(settings) { mutableStateOf(settings.language) }
     var sheetLanguage by remember(settings) { mutableStateOf(settings.sheetLanguage) }
     var sheetTitle by remember(settings) { mutableStateOf(settings.sheetTitleCustom) }
+    /** 0 = none, 1 = first warning, 2 = second warning. */
+    var clearStep by remember { mutableIntStateOf(0) }
     val live = Strings.of(language)
     val sheet = SheetLabelFactory.of(sheetLanguage)
     val currency = sheet.currencySuffix
@@ -198,7 +205,10 @@ fun SettingsDialog(
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(bottom = 4.dp),
                     )
-                    SettingsLanguageRadios(language) { language = it }
+                    SettingsLanguageRadios(
+                        selected = language,
+                        onSelect = { language = it },
+                    )
 
                     SettingsCardDivider()
                     Text(
@@ -212,10 +222,14 @@ fun SettingsDialog(
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(bottom = 4.dp),
                     )
-                    SettingsLanguageRadios(sheetLanguage) { next ->
-                        applyRegionExamples(sheetLanguage, next)
-                        sheetLanguage = next
-                    }
+                    SettingsLanguageRadios(
+                        selected = sheetLanguage,
+                        onSelect = { next ->
+                            applyRegionExamples(sheetLanguage, next)
+                            sheetLanguage = next
+                        },
+                        useCountryLabel = true,
+                    )
 
                     SettingsCardDivider()
                     SettingsTextField(
@@ -237,6 +251,31 @@ fun SettingsDialog(
                 SettingsCard {
                     AboutUpdateBlock(strings = live)
                 }
+
+                SettingsSectionLabel(live.sectionDanger)
+                SettingsCard {
+                    Text(
+                        live.clearData,
+                        fontWeight = FontWeight.SemiBold,
+                        color = AccentRed,
+                        modifier = Modifier.padding(top = 10.dp),
+                    )
+                    Text(
+                        live.clearDataHint,
+                        color = SheetMuted,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 10.dp),
+                    )
+                    Button(
+                        onClick = { clearStep = 1 },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentRed),
+                    ) {
+                        Text(live.clearData, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         },
         confirmButton = {
@@ -246,4 +285,40 @@ fun SettingsDialog(
             TextButton(onClick = onDismiss) { Text(live.cancel) }
         },
     )
+
+    if (clearStep == 1) {
+        AlertDialog(
+            onDismissRequest = { clearStep = 0 },
+            title = { Text(live.clearDataWarn1Title, fontWeight = FontWeight.Bold) },
+            text = { Text(live.clearDataWarn1Body) },
+            confirmButton = {
+                TextButton(onClick = { clearStep = 2 }) {
+                    Text(live.clearDataWarn1Confirm, color = AccentRed, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { clearStep = 0 }) { Text(live.cancel) }
+            },
+        )
+    }
+    if (clearStep == 2) {
+        AlertDialog(
+            onDismissRequest = { clearStep = 0 },
+            title = { Text(live.clearDataWarn2Title, fontWeight = FontWeight.Bold, color = AccentRed) },
+            text = { Text(live.clearDataWarn2Body) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        clearStep = 0
+                        onClearAllData()
+                    },
+                ) {
+                    Text(live.clearDataWarn2Confirm, color = AccentRed, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { clearStep = 0 }) { Text(live.cancel) }
+            },
+        )
+    }
 }

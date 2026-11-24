@@ -222,6 +222,7 @@ fun MonthReportScreen(
             settings = state.settings,
             onDismiss = { viewModel.openSettings(false) },
             onSave = viewModel::saveSettings,
+            onClearAllData = viewModel::clearAllData,
         )
     }
 

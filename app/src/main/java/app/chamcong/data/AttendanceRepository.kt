@@ -128,6 +128,13 @@ class AttendanceRepository(private val context: Context) {
         }
     }
 
+    /** Wipe all timesheet rows, months, settings — app returns to first-run setup. */
+    suspend fun clearAllData() {
+        context.dataStore.edit { prefs ->
+            prefs.clear()
+        }
+    }
+
     suspend fun addAdjacentMonth(from: MonthKey, next: Boolean): MonthKey {
         val ym = from.toYearMonth().let { if (next) it.plusMonths(1) else it.minusMonths(1) }
         val key = MonthKey.from(ym)

@@ -101,7 +101,10 @@ fun FirstSetupScreen(
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(bottom = 4.dp),
                 )
-                SettingsLanguageRadios(language) { language = it }
+                SettingsLanguageRadios(
+                    selected = language,
+                    onSelect = { language = it },
+                )
 
                 SettingsCardDivider()
                 Text(live.sheetRegion, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
@@ -111,10 +114,14 @@ fun FirstSetupScreen(
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(bottom = 4.dp),
                 )
-                SettingsLanguageRadios(sheetLanguage) { next ->
-                    applyRegionExamples(sheetLanguage, next)
-                    sheetLanguage = next
-                }
+                SettingsLanguageRadios(
+                    selected = sheetLanguage,
+                    onSelect = { next ->
+                        applyRegionExamples(sheetLanguage, next)
+                        sheetLanguage = next
+                    },
+                    useCountryLabel = true,
+                )
 
                 SettingsCardDivider()
                 SettingsTextField(

@@ -209,6 +209,18 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun clearAllData() {
+        viewModelScope.launch {
+            repo.clearAllData()
+            selectedMonth.value = MonthKey.current()
+            showSettings.value = false
+            showShare.value = false
+            updateStatus.value = null
+            autoUpdateStarted = false
+            repo.ensureMonth(MonthKey.current())
+        }
+    }
+
     fun share(format: ExportFormat) {
         val state = uiState.value
         if (state.exporting) return
