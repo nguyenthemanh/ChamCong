@@ -11,6 +11,8 @@ data class SheetLabels(
     val colDay: String,
     val colWeekday: String,
     val colSite: String,
+    /** Overtime column header (region language). */
+    val colOt: String,
     val colDriving: String,
     val sitePlaceholder: String,
     val driving: String,
@@ -18,6 +20,8 @@ data class SheetLabels(
     val workDaysSuffix: String,
     /** Currency unit shown with pay amounts for this region. */
     val currencySuffix: String,
+    /** Print/export: 90 → "1時間30分" / "1 giờ 30 phút" (region language). */
+    val formatDuration: (minutes: Int) -> String,
     /** Header year-month line (calendar language = region). */
     val monthLabel: (MonthKey) -> String,
     /** Compact month chip on the tab bar (calendar language = region). */
@@ -35,12 +39,14 @@ object SheetLabelFactory {
             colDay = "日",
             colWeekday = "曜",
             colSite = "ゲンバ",
+            colOt = "残業",
             colDriving = "運転",
             sitePlaceholder = "ゲンバ",
             driving = "運転",
             drivingOn = "運転あり",
             workDaysSuffix = "日",
             currencySuffix = "円",
+            formatDuration = ::jaDuration,
             monthLabel = { "${it.year} 年 ${it.month} 月" },
             tabLabel = { "${it.month}月_${it.year}" },
             weekdayShort = ::jaShort,
@@ -53,12 +59,14 @@ object SheetLabelFactory {
             colDay = "일",
             colWeekday = "요일",
             colSite = "현장",
+            colOt = "잔업",
             colDriving = "운전",
             sitePlaceholder = "현장",
             driving = "운전",
             drivingOn = "운전 있음",
             workDaysSuffix = "일",
             currencySuffix = "원",
+            formatDuration = ::koDuration,
             monthLabel = { "${it.year}년 ${it.month}월" },
             tabLabel = { "${it.month}월_${it.year}" },
             weekdayShort = ::koShort,
@@ -71,12 +79,14 @@ object SheetLabelFactory {
             colDay = "日",
             colWeekday = "曜",
             colSite = "工地",
+            colOt = "加班",
             colDriving = "駕駛",
             sitePlaceholder = "工地",
             driving = "駕駛",
             drivingOn = "有駕駛",
             workDaysSuffix = "日",
             currencySuffix = "元",
+            formatDuration = ::zhDuration,
             monthLabel = { "${it.year}年${it.month}月" },
             tabLabel = { "${it.month}月_${it.year}" },
             weekdayShort = ::zhShort,
@@ -89,12 +99,14 @@ object SheetLabelFactory {
             colDay = "Ngày",
             colWeekday = "Thứ",
             colSite = "Hiện trường",
+            colOt = "Tăng ca",
             colDriving = "Lái xe",
             sitePlaceholder = "Hiện trường",
             driving = "Lái xe",
             drivingOn = "Có lái",
             workDaysSuffix = " ngày",
             currencySuffix = "円",
+            formatDuration = ::viDuration,
             monthLabel = { "Tháng ${it.month}/${it.year}" },
             tabLabel = { "Tháng${it.month}_${it.year}" },
             weekdayShort = ::viShort,
@@ -107,17 +119,88 @@ object SheetLabelFactory {
             colDay = "Day",
             colWeekday = "DoW",
             colSite = "Site",
+            colOt = "OT",
             colDriving = "Drive",
             sitePlaceholder = "Job site",
             driving = "Drive",
             drivingOn = "Driving",
             workDaysSuffix = " days",
             currencySuffix = "¥",
+            formatDuration = ::enDuration,
             monthLabel = { "${it.year}-${it.month.toString().padStart(2, '0')}" },
             tabLabel = { "${it.month}/${it.year}" },
             weekdayShort = ::enShort,
             weekdayFull = ::enFull,
         )
+    }
+
+    /** Compact HH:MM for in-app cells (not region words). */
+    fun formatHhMm(minutes: Int): String {
+        val m = minutes.coerceAtLeast(0)
+        val h = m / 60
+        val min = m % 60
+        return "%02d:%02d".format(h, min)
+    }
+
+    private fun jaDuration(minutes: Int): String {
+        if (minutes <= 0) return ""
+        val h = minutes / 60
+        val m = minutes % 60
+        return when {
+            h > 0 && m > 0 -> "${h}時間${m}分"
+            h > 0 -> "${h}時間"
+            else -> "${m}分"
+        }
+    }
+
+    private fun koDuration(minutes: Int): String {
+        if (minutes <= 0) return ""
+        val h = minutes / 60
+        val m = minutes % 60
+        return when {
+            h > 0 && m > 0 -> "${h}시간 ${m}분"
+            h > 0 -> "${h}시간"
+            else -> "${m}분"
+        }
+    }
+
+    private fun zhDuration(minutes: Int): String {
+        if (minutes <= 0) return ""
+        val h = minutes / 60
+        val m = minutes % 60
+        return when {
+            h > 0 && m > 0 -> "${h}小時${m}分"
+            h > 0 -> "${h}小時"
+            else -> "${m}分"
+        }
+    }
+
+    private fun viDuration(minutes: Int): String {
+        if (minutes <= 0) return ""
+        val h = minutes / 60
+        val m = minutes % 60
+        return when {
+            h > 0 && m > 0 -> "$h giờ $m phút"
+            h > 0 -> "$h giờ"
+            else -> "$m phút"
+        }
+    }
+
+    private fun enDuration(minutes: Int): String {
+        if (minutes <= 0) return ""
+        val h = minutes / 60
+        val m = minutes % 60
+        val hPart = when (h) {
+            0 -> ""
+            1 -> "1 hour"
+            else -> "$h hours"
+        }
+        val mPart = when (m) {
+            0 -> ""
+            1 -> "1 minute"
+            else -> "$m minutes"
+        }
+        return listOf(hPart, mPart).filter { it.isNotEmpty() }.joinToString(" ")
     }
 
     private fun jaShort(dow: DayOfWeek) = when (dow) {

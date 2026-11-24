@@ -5,9 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,11 +17,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -59,9 +56,7 @@ private val WheelHeight = 176.dp
 
 /**
  * Vertical month picker (fold / tablet).
- * - List thật (không nhân bản 40 lần → tránh mọi tháng trùng tên)
- * - Cuộn snap giữa, cảm giác “vòng” khi nhiều tháng
- * - Xóa chỉ qua nút (ổn định, không race với scroll)
+ * Dấu X cạnh tháng đang chọn để xóa (cùng kiểu màn ngoài).
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -78,50 +73,26 @@ fun VerticalMonthWheel(
     onDeleteMonth: ((MonthKey) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    // Cũ trên → mới dưới, khớp ← lùi / → tiến trên dải tab ngang
     val sorted = remember(months) { months.distinct().sorted() }
     if (sorted.isEmpty()) return
 
     var pendingDelete by remember { mutableStateOf<MonthKey?>(null) }
     val structureKey = sorted.joinToString("|") { "${it.year}-${it.month}" }
 
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        key(structureKey) {
-            MonthSnapList(
-                sorted = sorted,
-                selected = selected,
-                sheet = sheet,
-                onSelect = onSelect,
-            )
-        }
-
-        if (onDeleteMonth != null) {
-            TextButton(
-                onClick = { pendingDelete = selected },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Delete,
-                        contentDescription = null,
-                        tint = AccentRed,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Text(
-                        text = "$deleteLabel · ${sheet.tabLabel(selected)}",
-                        color = AccentRed,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                    )
-                }
-            }
-        }
+    key(structureKey) {
+        MonthSnapList(
+            sorted = sorted,
+            selected = selected,
+            sheet = sheet,
+            onSelect = onSelect,
+            deleteLabel = deleteLabel,
+            onDeleteClick = if (onDeleteMonth != null) {
+                { month -> pendingDelete = month }
+            } else {
+                null
+            },
+            modifier = modifier,
+        )
     }
 
     val toDelete = pendingDelete
@@ -149,6 +120,9 @@ private fun MonthSnapList(
     selected: MonthKey,
     sheet: SheetLabels,
     onSelect: (MonthKey) -> Unit,
+    deleteLabel: String,
+    onDeleteClick: ((MonthKey) -> Unit)?,
+    modifier: Modifier = Modifier,
 ) {
     val initial = sorted.indexOf(selected).coerceAtLeast(0)
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initial)
@@ -183,7 +157,7 @@ private fun MonthSnapList(
     }
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(WheelHeight)
             .clip(RoundedCornerShape(14.dp))
@@ -224,8 +198,7 @@ private fun MonthSnapList(
                     else -> 0.32f
                 }
                 val active = dist == 0
-                Text(
-                    text = sheet.tabLabel(month),
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(ItemHeight)
@@ -238,13 +211,33 @@ private fun MonthSnapList(
                             scope.launch { listState.animateScrollToItem(index) }
                             onSelect(month)
                         }
-                        .padding(horizontal = 8.dp, vertical = 10.dp),
-                    textAlign = TextAlign.Center,
-                    color = if (active) AccentGreen else SheetMuted,
-                    fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                    fontSize = if (active) 16.sp else 14.sp,
-                    style = MaterialTheme.typography.labelLarge,
-                )
+                        .padding(horizontal = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = sheet.tabLabel(month),
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center,
+                        color = if (active) AccentGreen else SheetMuted,
+                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = if (active) 16.sp else 14.sp,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                    // X cạnh tháng đang chọn — cùng kiểu màn ngoài
+                    if (onDeleteClick != null && active) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = deleteLabel,
+                            tint = AccentRed,
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clickable { onDeleteClick(month) }
+                                .padding(2.dp),
+                        )
+                    } else {
+                        Box(Modifier.size(22.dp))
+                    }
+                }
             }
         }
     }

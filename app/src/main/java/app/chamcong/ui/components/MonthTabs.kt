@@ -13,7 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -79,8 +79,7 @@ fun MonthTabs(
             // Cũ → mới (trái → phải): ← lùi tháng cũ, → tiến tháng mới
             months.sorted().forEach { month ->
                 val active = month == selected
-                Text(
-                    text = sheet.tabLabel(month),
+                Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
                         .background(if (active) AccentGreen else ChipIdle)
@@ -89,24 +88,39 @@ fun MonthTabs(
                             color = SheetLine,
                             shape = RoundedCornerShape(12.dp),
                         )
-                        .clickable { onSelect(month) }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    color = if (active) Color.White else SheetInk,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                )
-            }
-        }
-        if (canDelete) {
-            IconButton(
-                onClick = { pendingDelete = selected },
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Delete,
-                    contentDescription = deleteLabel,
-                    tint = AccentRed,
-                    modifier = Modifier.size(22.dp),
-                )
+                        .padding(
+                            start = 10.dp,
+                            end = if (canDelete) 2.dp else 10.dp,
+                            top = 4.dp,
+                            bottom = 4.dp,
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(0.dp),
+                ) {
+                    Text(
+                        text = sheet.tabLabel(month),
+                        modifier = Modifier
+                            .clickable { onSelect(month) }
+                            .padding(vertical = 4.dp, horizontal = 2.dp),
+                        color = if (active) Color.White else SheetInk,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                    )
+                    if (canDelete) {
+                        IconButton(
+                            onClick = { pendingDelete = month },
+                            modifier = Modifier.size(28.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = deleteLabel,
+                                tint = if (active) Color.White.copy(alpha = 0.95f)
+                                else AccentRed.copy(alpha = 0.8f),
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    }
+                }
             }
         }
         IconButton(onClick = onNext) {

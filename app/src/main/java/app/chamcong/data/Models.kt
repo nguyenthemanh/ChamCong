@@ -9,10 +9,17 @@ data class DayEntry(
     val site: String = "",
     /** Extra flag on the day (default label 運転あり — customizable in settings). */
     val hasFlag: Boolean = false,
+    /** Overtime for this day in minutes (UI shows HH:MM). */
+    val overtimeMinutes: Int = 0,
 ) {
     val isRest: Boolean get() = WorkRules.isRestSite(site)
     val isWorked: Boolean get() = site.isNotBlank() && !isRest
-    val overtimeHours: Int get() = WorkRules.parseOvertimeHours(site)
+    /** Effective OT minutes — field first, else legacy `+Nh` in site text. */
+    val effectiveOvertimeMinutes: Int
+        get() = when {
+            overtimeMinutes > 0 -> overtimeMinutes
+            else -> WorkRules.parseOvertimeHours(site) * 60
+        }
 }
 
 data class MonthKey(val year: Int, val month: Int) : Comparable<MonthKey> {
@@ -83,16 +90,16 @@ data class PaySettings(
 
 data class MonthSummary(
     val workDays: Int,
-    val overtimeHours: Int,
+    val overtimeMinutes: Int,
     val flagDays: Int,
     val grossYen: Long,
     val deductionYen: Long,
     val netYen: Long,
 ) {
-    /** Excel D36 style: `16日` or `16日 +2h` */
-    fun workDaysText(suffix: String = "日"): String {
+    /** Excel D36 style: `16日` or `16日 +1時間30分` */
+    fun workDaysText(suffix: String = "日", otLabel: String = ""): String {
         val base = "$workDays$suffix"
-        return if (overtimeHours > 0) "$base +${overtimeHours}h" else base
+        return if (otLabel.isNotBlank()) "$base +$otLabel" else base
     }
 }
 
@@ -134,7 +141,9 @@ object CalendarFactory {
 
     fun summarize(rows: List<DayRow>, settings: PaySettings): MonthSummary {
         val workDays = rows.count { it.entry.isWorked }
-        val overtimeHours = rows.sumOf { if (it.entry.isWorked) it.entry.overtimeHours else 0 }
+        val overtimeMinutes = rows.sumOf {
+            if (it.entry.isWorked) it.entry.effectiveOvertimeMinutes else 0
+        }
         val flagDays = if (settings.flagEnabled) {
             rows.count { it.entry.isWorked && it.entry.hasFlag }
         } else {
@@ -143,7 +152,7 @@ object CalendarFactory {
         if (!settings.salaryEnabled) {
             return MonthSummary(
                 workDays = workDays,
-                overtimeHours = overtimeHours,
+                overtimeMinutes = overtimeMinutes,
                 flagDays = flagDays,
                 grossYen = 0L,
                 deductionYen = 0L,
@@ -151,13 +160,12 @@ object CalendarFactory {
             )
         }
         val flagPay = if (settings.flagEnabled) flagDays * settings.flagBonusYen else 0L
-        val gross = workDays * settings.dailyWageYen +
-            overtimeHours * settings.overtimeHourYen +
-            flagPay
+        val otPay = (overtimeMinutes.toLong() * settings.overtimeHourYen) / 60L
+        val gross = workDays * settings.dailyWageYen + otPay + flagPay
         val deduction = settings.monthlyDeductionYen
         return MonthSummary(
             workDays = workDays,
-            overtimeHours = overtimeHours,
+            overtimeMinutes = overtimeMinutes,
             flagDays = flagDays,
             grossYen = gross,
             deductionYen = deduction,
