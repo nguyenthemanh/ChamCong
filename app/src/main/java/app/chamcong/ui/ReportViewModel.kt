@@ -187,8 +187,23 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteMonth(month: MonthKey) {
         viewModelScope.launch {
             runCatching {
+                // Chọn tháng kế trước khi DataStore emit — tránh 1 frame
+                // selected = tháng đã xóa → khung tháng nháy/loạn.
+                val remaining = uiState.value.months.filterNot { it == month }
+                val preview = when {
+                    remaining.isEmpty() -> MonthKey.current()
+                    else -> {
+                        val sorted = remaining.sorted()
+                        sorted.lastOrNull { it < month }
+                            ?: sorted.firstOrNull { it > month }
+                            ?: sorted.last()
+                    }
+                }
+                selectedMonth.value = preview
                 val next = repo.deleteMonth(month)
-                selectedMonth.value = next
+                if (next != selectedMonth.value) {
+                    selectedMonth.value = next
+                }
             }
         }
     }

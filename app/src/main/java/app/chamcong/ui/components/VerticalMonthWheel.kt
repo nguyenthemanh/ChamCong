@@ -26,7 +26,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -50,6 +49,7 @@ import app.chamcong.ui.theme.SheetMuted
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import kotlin.math.abs
 
 private val ItemHeight = 44.dp
@@ -57,7 +57,7 @@ private val WheelHeight = 176.dp
 
 /**
  * Vertical month picker (fold / tablet).
- * Dấu X cạnh tháng đang chọn để xóa (cùng kiểu màn ngoài).
+ * Không remount cả khung khi xóa tháng (tránh nháy loạn lần đầu).
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -78,23 +78,20 @@ fun VerticalMonthWheel(
     if (sorted.isEmpty()) return
 
     var pendingDelete by remember { mutableStateOf<MonthKey?>(null) }
-    val structureKey = sorted.joinToString("|") { "${it.year}-${it.month}" }
 
-    key(structureKey) {
-        MonthSnapList(
-            sorted = sorted,
-            selected = selected,
-            sheet = sheet,
-            onSelect = onSelect,
-            deleteLabel = deleteLabel,
-            onDeleteClick = if (onDeleteMonth != null) {
-                { month -> pendingDelete = month }
-            } else {
-                null
-            },
-            modifier = modifier,
-        )
-    }
+    MonthSnapList(
+        sorted = sorted,
+        selected = selected,
+        sheet = sheet,
+        onSelect = onSelect,
+        deleteLabel = deleteLabel,
+        onDeleteClick = if (onDeleteMonth != null) {
+            { month -> pendingDelete = month }
+        } else {
+            null
+        },
+        modifier = modifier,
+    )
 
     val toDelete = pendingDelete
     if (toDelete != null && onDeleteMonth != null) {
@@ -125,31 +122,35 @@ private fun MonthSnapList(
     onDeleteClick: ((MonthKey) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    val initial = sorted.indexOf(selected).coerceAtLeast(0)
+    val safeSelected = if (sorted.contains(selected)) selected else sorted.last()
+    val initial = sorted.indexOf(safeSelected).coerceAtLeast(0)
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initial)
     val fling = rememberSnapFlingBehavior(lazyListState = listState)
     val scope = rememberCoroutineScope()
-    var suppress by remember { mutableStateOf(false) }
+    var suppressSelect by remember { mutableStateOf(false) }
 
-    LaunchedEffect(selected, sorted) {
-        val target = sorted.indexOf(selected)
-        if (target < 0) return@LaunchedEffect
-        val center = centeredIndex(listState) ?: return@LaunchedEffect
-        if (center != target) {
-            suppress = true
-            listState.scrollToItem(target)
-            suppress = false
+    // Đồng bộ vị trí khi đổi selected / danh sách — không destroy LazyColumn
+    LaunchedEffect(safeSelected, sorted) {
+        suppressSelect = true
+        val target = sorted.indexOf(safeSelected)
+        if (target >= 0) {
+            val center = centeredIndex(listState)
+            if (center != target) {
+                listState.scrollToItem(target)
+            }
         }
+        yield()
+        suppressSelect = false
     }
 
-    LaunchedEffect(listState, sorted) {
+    LaunchedEffect(listState, sorted, safeSelected) {
         snapshotFlow { centeredIndex(listState) }
             .filter { it != null }
             .distinctUntilChanged()
             .collect { idx ->
-                if (suppress || idx == null) return@collect
+                if (suppressSelect || idx == null) return@collect
                 val m = sorted.getOrNull(idx) ?: return@collect
-                if (m != selected) onSelect(m)
+                if (m != safeSelected) onSelect(m)
             }
     }
 
@@ -198,7 +199,7 @@ private fun MonthSnapList(
                     1 -> 0.55f
                     else -> 0.32f
                 }
-                val active = dist == 0
+                val active = dist == 0 || month == safeSelected && centerIdx == null
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -209,7 +210,11 @@ private fun MonthSnapList(
                             this.alpha = alpha
                         }
                         .clickable {
-                            scope.launch { listState.animateScrollToItem(index) }
+                            scope.launch {
+                                suppressSelect = true
+                                listState.animateScrollToItem(index)
+                                suppressSelect = false
+                            }
                             onSelect(month)
                         }
                         .padding(horizontal = 10.dp),
@@ -224,7 +229,6 @@ private fun MonthSnapList(
                         fontSize = if (active) 16.sp else 14.sp,
                         style = MaterialTheme.typography.labelLarge,
                     )
-                    // Dấu X cạnh tháng (rõ khi đang chọn) — cùng kiểu màn ngoài
                     if (onDeleteClick != null) {
                         IconButton(
                             onClick = { onDeleteClick(month) },
