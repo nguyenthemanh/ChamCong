@@ -79,7 +79,7 @@ fun MonthReportScreen(
     val ui = Strings.of(state.settings.language)
     val sheet = SheetLabelFactory.of(state.settings.sheetLanguage)
     val context = LocalContext.current
-    val appNameWithLang = "${ui.appTitle} · ${state.settings.language.label}"
+    val appNameWithLang = ui.appTitle
     val adaptive = LocalAdaptive.current
 
     SideEffect {
