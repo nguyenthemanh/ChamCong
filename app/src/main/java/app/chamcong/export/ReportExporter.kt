@@ -129,7 +129,7 @@ object ReportExporter {
         val rowH = 46f
         val headerH = 44f
         val topBlock = 220f
-        val footerH = 100f
+        val footerH = 120f
         val height = (topBlock + headerH + rows.size * rowH + footerH + margin * 2).toInt()
 
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
@@ -202,10 +202,10 @@ object ReportExporter {
         val tableLeft = margin
         val tableRight = width - margin
         val colDay = 70f
-        val colWeek = 170f
-        // OT nằm cạnh tên công trường (cột riêng sát cột site)
-        val colOtW = if (showOt) 220f else 0f
-        val colDrive = if (showFlag) 150f else 0f
+        val colWeek = 160f
+        // Cột tăng ca sát ngay bên phải cột công trường
+        val colOtW = if (showOt) 240f else 0f
+        val colDrive = if (showFlag) 140f else 0f
         val colSite = (tableRight - tableLeft) - colDay - colWeek - colOtW - colDrive
         val x0 = tableLeft
         val x1 = x0 + colDay
@@ -229,8 +229,7 @@ object ReportExporter {
             }
         }
         fun centerText(text: String, left: Float, right: Float, baseline: Float, paint: Paint) {
-            val cx = (left + right) / 2f
-            canvas.drawText(text, cx, baseline, paint)
+            canvas.drawText(text, (left + right) / 2f, baseline, paint)
         }
 
         val headerTop = y
@@ -264,10 +263,9 @@ object ReportExporter {
         y = headerBottom
         val cellPaint = Paint(ink).apply { textSize = bodySize; textAlign = Paint.Align.CENTER }
         val sitePaint = Paint(ink).apply { textSize = bodySize; textAlign = Paint.Align.LEFT }
-        val otPaint = Paint(ink).apply {
-            textSize = 22f
+        val otPaint = Paint(inkBold).apply {
+            textSize = 20f
             textAlign = Paint.Align.CENTER
-            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
         }
         val drivePaint = Paint(ink).apply { textSize = 24f; textAlign = Paint.Align.CENTER }
 
@@ -280,10 +278,11 @@ object ReportExporter {
             val baseline = top + rowH * 0.68f
             centerText(row.day.toString(), x0, x1, baseline, cellPaint)
             centerText(sheet.weekdayFull(row.dayOfWeek), x1, x2, baseline, cellPaint)
+            // Tên công trường
             if (row.entry.site.isNotBlank()) {
-                canvas.drawText(row.entry.site, x2 + 14f, baseline, sitePaint)
+                canvas.drawText(row.entry.site, x2 + 12f, baseline, sitePaint)
             }
-            // Giờ tăng ca ghi cạnh tên công trường (cột sát bên phải)
+            // Giờ tăng ca — cột ngay cạnh tên công trường (vd. 1 giờ 30 phút)
             if (showOt) {
                 val otMins = row.entry.effectiveOvertimeMinutes
                 if (otMins > 0 && row.entry.isWorked) {
@@ -299,16 +298,19 @@ object ReportExporter {
         canvas.drawLine(tableLeft, headerTop, tableLeft, y, line)
         canvas.drawLine(tableRight, headerTop, tableRight, y, line)
 
-        // Tổng thẳng cột: ngày công (dưới công trường) | tổng tăng ca | nhãn
-        y += 18f
-        val boxH = 52f
+        // Footer: Tổng ngày công | Tổng giờ tăng ca | (nhãn)
+        y += 16f
+        val boxH = 64f
         val boxTop = y
         val boxBottom = y + boxH
-        val footerPaint = Paint(inkBold).apply {
-            textSize = 28f
+        val footLabelPaint = Paint(muted).apply {
+            textSize = 16f
             textAlign = Paint.Align.CENTER
         }
-        val textY = boxTop + boxH * 0.68f
+        val footValuePaint = Paint(inkBold).apply {
+            textSize = 26f
+            textAlign = Paint.Align.CENTER
+        }
         val daysText = "${summary.workDays}${sheet.workDaysSuffix.trim()}"
         val otDisplay = when {
             !showOt -> ""
@@ -322,24 +324,29 @@ object ReportExporter {
             }
         }
 
-        fun drawFootBox(left: Float, right: Float, value: String) {
+        fun drawLabeledBox(left: Float, right: Float, label: String, value: String) {
             canvas.drawRect(left, boxTop, right, boxBottom, fillCell)
             canvas.drawRect(RectF(left, boxTop, right, boxBottom), line)
-            canvas.drawText(value, (left + right) / 2f, textY, footerPaint)
+            canvas.drawText(label, (left + right) / 2f, boxTop + 22f, footLabelPaint)
+            canvas.drawText(value, (left + right) / 2f, boxTop + 50f, footValuePaint)
         }
 
-        // Tổng ngày làm — dưới cột công trường
-        drawFootBox(x2, siteRight, daysText)
-        // Tổng giờ tăng ca — dưới cột tăng ca (cạnh công trường)
+        // Tổng ngày làm — thẳng cột công trường
+        drawLabeledBox(x2, siteRight, sheet.totalWorkDays, daysText)
+        // Tổng giờ tăng ca — thẳng cột cạnh công trường
         if (showOt) {
-            drawFootBox(otLeft, otRight, otDisplay)
+            drawLabeledBox(otLeft, otRight, sheet.totalOt, otDisplay)
             canvas.drawLine(otLeft, boxTop, otLeft, boxBottom, line)
         }
         if (showFlag) {
-            drawFootBox(flagLeft, flagRight, summary.flagDays.toString())
+            drawLabeledBox(
+                flagLeft,
+                flagRight,
+                settings.flagLabelOff.ifBlank { sheet.colDriving },
+                summary.flagDays.toString(),
+            )
             canvas.drawLine(flagLeft, boxTop, flagLeft, boxBottom, line)
         }
-        // Pay estimate stays in-app only — not exported to PDF/JPG.
 
         return bitmap
     }
