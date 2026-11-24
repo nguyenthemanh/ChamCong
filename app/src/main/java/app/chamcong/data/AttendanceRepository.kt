@@ -142,6 +142,35 @@ class AttendanceRepository(private val context: Context) {
         return key
     }
 
+    /**
+     * Remove a month and its day entries.
+     * Keeps at least one month (current calendar month if the list would be empty).
+     * @return month that should be selected after delete
+     */
+    suspend fun deleteMonth(month: MonthKey): MonthKey {
+        var nextSelected = MonthKey.current()
+        context.dataStore.edit { prefs ->
+            val months = parseMonths(prefs[monthsKey]).toMutableList()
+            if (months.size <= 1 && months.contains(month)) {
+                // Must keep one month — clear its entries instead of removing the tab.
+                prefs.remove(monthEntriesKey(month))
+                nextSelected = month
+                return@edit
+            }
+            months.removeAll { it == month }
+            prefs.remove(monthEntriesKey(month))
+            if (months.isEmpty()) {
+                val cur = MonthKey.current()
+                months.add(cur)
+                nextSelected = cur
+            } else {
+                nextSelected = months.sortedDescending().first()
+            }
+            prefs[monthsKey] = encodeMonths(months.sortedDescending())
+        }
+        return nextSelected
+    }
+
     private fun monthEntriesKey(month: MonthKey) =
         stringPreferencesKey("entries_${month.year}_${month.month}")
 

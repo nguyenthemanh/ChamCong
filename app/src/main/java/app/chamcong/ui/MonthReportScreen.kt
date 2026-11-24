@@ -140,6 +140,7 @@ fun MonthReportScreen(
             onSelectMonth = viewModel::selectMonth,
             onPrev = viewModel::prevMonth,
             onNext = viewModel::nextMonth,
+            onDeleteMonth = viewModel::deleteMonth,
             onDayChange = viewModel::updateDay,
         )
         DevicePosture.Book -> UnfoldedBookLayout(
@@ -155,6 +156,7 @@ fun MonthReportScreen(
             onSelectMonth = viewModel::selectMonth,
             onPrev = viewModel::prevMonth,
             onNext = viewModel::nextMonth,
+            onDeleteMonth = viewModel::deleteMonth,
             onDayChange = viewModel::updateDay,
         )
         DevicePosture.Tabletop -> TabletopLayout(
@@ -169,6 +171,7 @@ fun MonthReportScreen(
             onSelectMonth = viewModel::selectMonth,
             onPrev = viewModel::prevMonth,
             onNext = viewModel::nextMonth,
+            onDeleteMonth = viewModel::deleteMonth,
             onDayChange = viewModel::updateDay,
         )
     }
@@ -206,6 +209,7 @@ private fun CoverScreenLayout(
     onSelectMonth: (MonthKey) -> Unit,
     onPrev: () -> Unit,
     onNext: () -> Unit,
+    onDeleteMonth: (MonthKey) -> Unit,
     onDayChange: (Int, String, Boolean) -> Unit,
 ) {
     Scaffold(
@@ -256,6 +260,12 @@ private fun CoverScreenLayout(
                 onNext = onNext,
                 prevLabel = ui.prevMonth,
                 nextLabel = ui.nextMonth,
+                deleteLabel = ui.deleteMonth,
+                deleteTitle = ui.deleteMonthConfirmTitle,
+                deleteBody = ui.deleteMonthConfirmBody,
+                deleteConfirm = ui.deleteMonthConfirm,
+                cancelLabel = ui.cancel,
+                onDeleteMonth = onDeleteMonth,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp, bottom = 4.dp),
@@ -290,6 +300,7 @@ private fun UnfoldedBookLayout(
     onSelectMonth: (MonthKey) -> Unit,
     onPrev: () -> Unit,
     onNext: () -> Unit,
+    onDeleteMonth: (MonthKey) -> Unit,
     onDayChange: (Int, String, Boolean) -> Unit,
 ) {
     Row(
@@ -363,22 +374,23 @@ private fun UnfoldedBookLayout(
                 )
             }
 
-            Row(
+            TextButton(
+                onClick = onCreateMonth,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                TextButton(
-                    onClick = onCreateMonth,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("+", color = AccentGreen, fontWeight = FontWeight.Bold)
-                }
-                TextButton(
-                    onClick = onSave,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Icon(Icons.Outlined.Save, null, tint = AccentGreen)
-                }
+                Text("+ ${ui.newMonth}", color = AccentGreen, fontWeight = FontWeight.Bold, maxLines = 1)
+            }
+            TextButton(
+                onClick = onSave,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(
+                    Icons.Outlined.Save,
+                    contentDescription = null,
+                    tint = AccentGreen,
+                    modifier = Modifier.padding(end = 6.dp),
+                )
+                Text(ui.save, color = AccentGreen, fontWeight = FontWeight.Bold)
             }
 
             MonthTabs(
@@ -390,6 +402,12 @@ private fun UnfoldedBookLayout(
                 onNext = onNext,
                 prevLabel = ui.prevMonth,
                 nextLabel = ui.nextMonth,
+                deleteLabel = ui.deleteMonth,
+                deleteTitle = ui.deleteMonthConfirmTitle,
+                deleteBody = ui.deleteMonthConfirmBody,
+                deleteConfirm = ui.deleteMonthConfirm,
+                cancelLabel = ui.cancel,
+                onDeleteMonth = onDeleteMonth,
                 modifier = Modifier.fillMaxWidth(),
             )
             UpdateStatusBanner(state.updateStatus)
@@ -434,6 +452,7 @@ private fun TabletopLayout(
     onSelectMonth: (MonthKey) -> Unit,
     onPrev: () -> Unit,
     onNext: () -> Unit,
+    onDeleteMonth: (MonthKey) -> Unit,
     onDayChange: (Int, String, Boolean) -> Unit,
 ) {
     Column(
@@ -487,6 +506,12 @@ private fun TabletopLayout(
                 onNext = onNext,
                 prevLabel = ui.prevMonth,
                 nextLabel = ui.nextMonth,
+                deleteLabel = ui.deleteMonth,
+                deleteTitle = ui.deleteMonthConfirmTitle,
+                deleteBody = ui.deleteMonthConfirmBody,
+                deleteConfirm = ui.deleteMonthConfirm,
+                cancelLabel = ui.cancel,
+                onDeleteMonth = onDeleteMonth,
                 modifier = Modifier.fillMaxWidth(),
             )
             UpdateStatusBanner(state.updateStatus)

@@ -173,6 +173,14 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun deleteMonth(month: MonthKey) {
+        viewModelScope.launch {
+            val next = repo.deleteMonth(month)
+            selectedMonth.value = next
+            repo.ensureMonth(next)
+        }
+    }
+
     private fun shiftMonth(next: Boolean) {
         viewModelScope.launch {
             val key = repo.addAdjacentMonth(selectedMonth.value, next)
