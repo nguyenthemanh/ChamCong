@@ -88,12 +88,13 @@ data class AppStrings(
     val updateNeedInstallPerm: String,
 ) {
     /**
-     * Breakdown khớp tính lương: ngày×đơn giá + tăng ca (+ nhãn) − khấu trừ = thực nhận.
-     * [otDuration] = chữ vùng (vd. "1 giờ 30 phút").
+     * Breakdown khớp tính lương:
+     * ngày×đơn giá(=…) + tăng ca (1 giờ 30 phút × đơn giá/giờ = …) + nhãn − khấu trừ = thực nhận
      */
     fun payFormulaLine(
         workDays: Int,
         dailyWageYen: Long,
+        workPayYen: Long,
         otEnabled: Boolean,
         otDuration: String,
         otHourYen: Long,
@@ -107,17 +108,19 @@ data class AppStrings(
         currency: String,
     ): String {
         val parts = mutableListOf<String>()
-        parts.add("$workDays×${dailyWageYen.formatMoney(currency)}")
-        if (otEnabled && otPayYen > 0) {
-            val otPart = if (otDuration.isNotBlank()) {
-                "$otDuration×${otHourYen.formatMoney(currency)}"
-            } else {
-                otPayYen.formatMoney(currency)
-            }
-            parts.add(otPart)
+        parts.add(
+            "$workDays×${dailyWageYen.formatMoney(currency)}=${workPayYen.formatMoney(currency)}",
+        )
+        if (otEnabled && (otPayYen > 0 || otDuration.isNotBlank())) {
+            val dur = otDuration.ifBlank { "OT" }
+            parts.add(
+                "$dur×${otHourYen.formatMoney(currency)}/h=${otPayYen.formatMoney(currency)}",
+            )
         }
         if (flagEnabled && flagPayYen > 0) {
-            parts.add("$flagDays×${flagBonusYen.formatMoney(currency)}")
+            parts.add(
+                "$flagDays×${flagBonusYen.formatMoney(currency)}=${flagPayYen.formatMoney(currency)}",
+            )
         }
         return "${parts.joinToString(" + ")} − ${deductionYen.formatMoney(currency)} = ${netYen.formatMoney(currency)}"
     }

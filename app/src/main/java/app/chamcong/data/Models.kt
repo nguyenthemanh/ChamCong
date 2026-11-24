@@ -51,9 +51,11 @@ data class DayRow(
 
 /**
  * Rates mirror Excel 月報報告書:
- * gross = workDays*dailyWage + otHours*overtimeHourYen + flagDays*flagBonusYen
- * net   = gross - monthlyDeductionYen
- * (Nov 2026 sample: 16*16000 + 10*2000 - 69000 = 207000)
+ * workPay = workDays * dailyWage
+ * otPay   = overtimeMinutes * overtimeHourYen / 60   (khi overtimeEnabled)
+ * flagPay = flagDays * flagBonusYen                 (khi flagEnabled)
+ * gross   = workPay + otPay + flagPay
+ * net     = gross - monthlyDeductionYen
  */
 data class PaySettings(
     /** Example placeholder — user replaces with their name. */

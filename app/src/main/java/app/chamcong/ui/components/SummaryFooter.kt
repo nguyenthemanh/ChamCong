@@ -98,7 +98,7 @@ private fun SummaryBarLayout(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     MoneyTiny(ui.payGross, summary.grossYen.formatMoney(currency))
-                    if (settings.overtimeEnabled && summary.otPayYen > 0) {
+                    if (settings.overtimeEnabled) {
                         MoneyTiny(ui.payOt, summary.otPayYen.formatMoney(currency))
                     }
                     MoneyTiny(ui.payDeduction, "−${summary.deductionYen.formatMoney(currency)}", Color(0xFFFFE082))
@@ -111,6 +111,7 @@ private fun SummaryBarLayout(
                 text = ui.payFormulaLine(
                     workDays = summary.workDays,
                     dailyWageYen = settings.dailyWageYen,
+                    workPayYen = summary.workPayYen,
                     otEnabled = settings.overtimeEnabled,
                     otDuration = sheet.formatDuration(summary.overtimeMinutes),
                     otHourYen = settings.overtimeHourYen,
@@ -175,7 +176,7 @@ private fun SummaryPanelLayout(
         if (settings.salaryEnabled) {
             HorizontalDivider(color = Color.White.copy(alpha = 0.18f), thickness = 0.5.dp)
             PanelRow(ui.payGross, summary.grossYen.formatMoney(currency))
-            if (settings.overtimeEnabled && summary.otPayYen > 0) {
+            if (settings.overtimeEnabled) {
                 PanelRow(ui.payOt, summary.otPayYen.formatMoney(currency))
             }
             PanelRow(ui.payDeduction, "−${summary.deductionYen.formatMoney(currency)}", Color(0xFFFFE082))
@@ -184,6 +185,7 @@ private fun SummaryPanelLayout(
                 text = ui.payFormulaLine(
                     workDays = summary.workDays,
                     dailyWageYen = settings.dailyWageYen,
+                    workPayYen = summary.workPayYen,
                     otEnabled = settings.overtimeEnabled,
                     otDuration = sheet.formatDuration(summary.overtimeMinutes),
                     otHourYen = settings.overtimeHourYen,
