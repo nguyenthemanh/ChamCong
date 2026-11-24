@@ -76,15 +76,18 @@ private fun SummaryBarLayout(
         ) {
             SummaryChip(
                 ui.summaryWorkDays,
-                summary.workDaysText(
-                    sheet.workDaysSuffix.trim(),
-                    if (settings.overtimeEnabled) {
+                "${summary.workDays}${sheet.workDaysSuffix.trim()}",
+            )
+            if (settings.overtimeEnabled) {
+                SummaryChip(
+                    sheet.colOt,
+                    if (summary.overtimeMinutes > 0) {
                         sheet.formatDuration(summary.overtimeMinutes)
                     } else {
-                        ""
+                        "—"
                     },
-                ),
-            )
+                )
+            }
             if (settings.flagEnabled) {
                 SummaryChip(ui.summaryFlagDays.format(flagName), summary.flagDays.toString())
             }
@@ -142,15 +145,18 @@ private fun SummaryPanelLayout(
     ) {
         PanelRow(
             ui.summaryWorkDays,
-            summary.workDaysText(
-                sheet.workDaysSuffix.trim(),
-                if (settings.overtimeEnabled) {
+            "${summary.workDays}${sheet.workDaysSuffix.trim()}",
+        )
+        if (settings.overtimeEnabled) {
+            PanelRow(
+                sheet.colOt,
+                if (summary.overtimeMinutes > 0) {
                     sheet.formatDuration(summary.overtimeMinutes)
                 } else {
-                    ""
+                    "—"
                 },
-            ),
-        )
+            )
+        }
         if (settings.flagEnabled) {
             PanelRow(ui.summaryFlagDays.format(flagName), summary.flagDays.toString())
         }

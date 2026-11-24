@@ -203,7 +203,8 @@ object ReportExporter {
         val tableRight = width - margin
         val colDay = 70f
         val colWeek = 170f
-        val colOtW = if (showOt) 200f else 0f
+        // OT nằm cạnh tên công trường (cột riêng sát cột site)
+        val colOtW = if (showOt) 220f else 0f
         val colDrive = if (showFlag) 150f else 0f
         val colSite = (tableRight - tableLeft) - colDay - colWeek - colOtW - colDrive
         val x0 = tableLeft
@@ -263,7 +264,11 @@ object ReportExporter {
         y = headerBottom
         val cellPaint = Paint(ink).apply { textSize = bodySize; textAlign = Paint.Align.CENTER }
         val sitePaint = Paint(ink).apply { textSize = bodySize; textAlign = Paint.Align.LEFT }
-        val otPaint = Paint(ink).apply { textSize = 22f; textAlign = Paint.Align.CENTER }
+        val otPaint = Paint(ink).apply {
+            textSize = 22f
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+        }
         val drivePaint = Paint(ink).apply { textSize = 24f; textAlign = Paint.Align.CENTER }
 
         rows.forEach { row ->
@@ -278,6 +283,7 @@ object ReportExporter {
             if (row.entry.site.isNotBlank()) {
                 canvas.drawText(row.entry.site, x2 + 14f, baseline, sitePaint)
             }
+            // Giờ tăng ca ghi cạnh tên công trường (cột sát bên phải)
             if (showOt) {
                 val otMins = row.entry.effectiveOvertimeMinutes
                 if (otMins > 0 && row.entry.isWorked) {
@@ -293,7 +299,7 @@ object ReportExporter {
         canvas.drawLine(tableLeft, headerTop, tableLeft, y, line)
         canvas.drawLine(tableRight, headerTop, tableRight, y, line)
 
-        // Summary under site + OT (+ flag when enabled).
+        // Tổng thẳng cột: ngày công (dưới công trường) | tổng tăng ca | nhãn
         y += 18f
         val boxH = 52f
         val boxTop = y
@@ -303,23 +309,35 @@ object ReportExporter {
             textAlign = Paint.Align.CENTER
         }
         val textY = boxTop + boxH * 0.68f
-        val otTotal = if (showOt) sheet.formatDuration(summary.overtimeMinutes) else ""
-        val daysLabel = summary.workDaysText(sheet.workDaysSuffix.trim(), otTotal)
-        val daysRight = if (showFlag) flagLeft else tableRight
+        val daysText = "${summary.workDays}${sheet.workDaysSuffix.trim()}"
+        val otDisplay = when {
+            !showOt -> ""
+            summary.overtimeMinutes > 0 -> sheet.formatDuration(summary.overtimeMinutes)
+            else -> when (settings.sheetLanguage) {
+                app.chamcong.data.AppLanguage.JA -> "0分"
+                app.chamcong.data.AppLanguage.KO -> "0분"
+                app.chamcong.data.AppLanguage.ZH_TW -> "0分"
+                app.chamcong.data.AppLanguage.VI -> "0 phút"
+                app.chamcong.data.AppLanguage.EN -> "0 minutes"
+            }
+        }
+
+        fun drawFootBox(left: Float, right: Float, value: String) {
+            canvas.drawRect(left, boxTop, right, boxBottom, fillCell)
+            canvas.drawRect(RectF(left, boxTop, right, boxBottom), line)
+            canvas.drawText(value, (left + right) / 2f, textY, footerPaint)
+        }
+
+        // Tổng ngày làm — dưới cột công trường
+        drawFootBox(x2, siteRight, daysText)
+        // Tổng giờ tăng ca — dưới cột tăng ca (cạnh công trường)
+        if (showOt) {
+            drawFootBox(otLeft, otRight, otDisplay)
+            canvas.drawLine(otLeft, boxTop, otLeft, boxBottom, line)
+        }
         if (showFlag) {
-            val box1 = RectF(x2, boxTop, daysRight, boxBottom)
-            val box2 = RectF(flagLeft, boxTop, flagRight, boxBottom)
-            canvas.drawRect(box1, fillCell)
-            canvas.drawRect(box2, fillCell)
-            canvas.drawRect(RectF(x2, boxTop, flagRight, boxBottom), line)
+            drawFootBox(flagLeft, flagRight, summary.flagDays.toString())
             canvas.drawLine(flagLeft, boxTop, flagLeft, boxBottom, line)
-            canvas.drawText(daysLabel, box1.centerX(), textY, footerPaint)
-            canvas.drawText(summary.flagDays.toString(), box2.centerX(), textY, footerPaint)
-        } else {
-            val box1 = RectF(x2, boxTop, daysRight, boxBottom)
-            canvas.drawRect(box1, fillCell)
-            canvas.drawRect(box1, line)
-            canvas.drawText(daysLabel, box1.centerX(), textY, footerPaint)
         }
         // Pay estimate stays in-app only — not exported to PDF/JPG.
 
