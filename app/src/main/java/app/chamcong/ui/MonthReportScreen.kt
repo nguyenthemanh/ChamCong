@@ -538,6 +538,7 @@ private fun DaysPane(
             sheet = sheet,
             flagColumn = settings.flagLabelOff,
             showFlag = settings.flagEnabled,
+            showOt = settings.overtimeEnabled,
         )
         Box(Modifier.weight(1f).fillMaxWidth()) {
             LazyColumn(
@@ -767,7 +768,12 @@ private fun ActionRow(
 }
 
 @Composable
-private fun TableHeader(sheet: SheetLabels, flagColumn: String, showFlag: Boolean) {
+private fun TableHeader(
+    sheet: SheetLabels,
+    flagColumn: String,
+    showFlag: Boolean,
+    showOt: Boolean,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -782,7 +788,9 @@ private fun TableHeader(sheet: SheetLabels, flagColumn: String, showFlag: Boolea
         Text(sheet.colDay, Modifier.width(28.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
         Text(sheet.colWeekday, Modifier.width(36.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
         Text(sheet.colSite, Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-        Text(sheet.colOt, Modifier.width(54.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        if (showOt) {
+            Text(sheet.colOt, Modifier.width(54.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        }
         if (showFlag) {
             Text(flagColumn, Modifier.width(72.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
         }

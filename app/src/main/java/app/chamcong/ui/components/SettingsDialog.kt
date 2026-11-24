@@ -39,6 +39,7 @@ fun SettingsDialog(
     var name by remember(settings) { mutableStateOf(settings.employeeName) }
     var kana by remember(settings) { mutableStateOf(settings.employeeNameKana) }
     var salaryEnabled by remember(settings) { mutableStateOf(settings.salaryEnabled) }
+    var overtimeEnabled by remember(settings) { mutableStateOf(settings.overtimeEnabled) }
     var flagEnabled by remember(settings) { mutableStateOf(settings.flagEnabled) }
     var salaryFolderOpen by remember(settings) { mutableStateOf(false) }
     var flagFolderOpen by remember(settings) { mutableStateOf(false) }
@@ -73,6 +74,7 @@ fun SettingsDialog(
             employeeName = name,
             employeeNameKana = kana,
             salaryEnabled = salaryEnabled,
+            overtimeEnabled = overtimeEnabled,
             flagEnabled = flagEnabled,
             dailyWageYen = wage.toLongOrNull() ?: settings.dailyWageYen,
             overtimeHourYen = ot.toLongOrNull() ?: settings.overtimeHourYen,
@@ -136,7 +138,9 @@ fun SettingsDialog(
                             onToggle = { salaryFolderOpen = !salaryFolderOpen },
                         ) {
                             SettingsNumberField(wage, { wage = it }, live.dailyWageLabel(currency))
-                            SettingsNumberField(ot, { ot = it }, live.overtimeHourLabel(currency))
+                            if (overtimeEnabled) {
+                                SettingsNumberField(ot, { ot = it }, live.overtimeHourLabel(currency))
+                            }
                             SettingsNumberField(
                                 deduction,
                                 { deduction = it },
@@ -155,6 +159,14 @@ fun SettingsDialog(
                             }
                         }
                     }
+
+                    SettingsCardDivider()
+                    SettingsSwitchRow(
+                        title = live.overtimeEnabled,
+                        hint = live.overtimeEnabledHint,
+                        checked = overtimeEnabled,
+                        onCheckedChange = { overtimeEnabled = it },
+                    )
 
                     SettingsCardDivider()
                     SettingsSwitchRow(

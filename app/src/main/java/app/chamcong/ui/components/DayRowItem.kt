@@ -137,11 +137,13 @@ fun DayRowItem(
             },
         )
         // Cột tăng ca giữa site và nhãn — nhấn mở bánh xe HH:MM
-        OtCell(
-            minutes = otMinutes,
-            enabled = siteText.isNotBlank(),
-            onClick = { if (siteText.isNotBlank()) showOtPicker = true },
-        )
+        if (settings.overtimeEnabled) {
+            OtCell(
+                minutes = otMinutes,
+                enabled = siteText.isNotBlank(),
+                onClick = { if (siteText.isNotBlank()) showOtPicker = true },
+            )
+        }
         if (settings.flagEnabled) {
             FlagChip(
                 labelIdle = settings.flagLabelOff,
@@ -157,7 +159,7 @@ fun DayRowItem(
         }
     }
 
-    if (showOtPicker) {
+    if (showOtPicker && settings.overtimeEnabled) {
         OvertimePickerDialog(
             initialMinutes = otMinutes,
             sheet = sheet,

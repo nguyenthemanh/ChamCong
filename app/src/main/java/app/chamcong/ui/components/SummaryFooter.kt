@@ -78,7 +78,11 @@ private fun SummaryBarLayout(
                 ui.summaryWorkDays,
                 summary.workDaysText(
                     sheet.workDaysSuffix.trim(),
-                    sheet.formatDuration(summary.overtimeMinutes),
+                    if (settings.overtimeEnabled) {
+                        sheet.formatDuration(summary.overtimeMinutes)
+                    } else {
+                        ""
+                    },
                 ),
             )
             if (settings.flagEnabled) {
@@ -140,7 +144,11 @@ private fun SummaryPanelLayout(
             ui.summaryWorkDays,
             summary.workDaysText(
                 sheet.workDaysSuffix.trim(),
-                sheet.formatDuration(summary.overtimeMinutes),
+                if (settings.overtimeEnabled) {
+                    sheet.formatDuration(summary.overtimeMinutes)
+                } else {
+                    ""
+                },
             ),
         )
         if (settings.flagEnabled) {

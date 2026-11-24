@@ -39,6 +39,7 @@ fun FirstSetupScreen(
     var name by remember { mutableStateOf(initial.employeeName) }
     var kana by remember { mutableStateOf(initial.employeeNameKana) }
     var salaryEnabled by remember { mutableStateOf(initial.salaryEnabled) }
+    var overtimeEnabled by remember { mutableStateOf(initial.overtimeEnabled) }
     var flagEnabled by remember { mutableStateOf(initial.flagEnabled) }
     var salaryFolderOpen by remember { mutableStateOf(initial.salaryEnabled) }
     var flagFolderOpen by remember { mutableStateOf(initial.flagEnabled) }
@@ -170,7 +171,9 @@ fun FirstSetupScreen(
                         onToggle = { salaryFolderOpen = !salaryFolderOpen },
                     ) {
                         SettingsNumberField(wage, { wage = it }, live.dailyWageLabel(currency))
-                        SettingsNumberField(ot, { ot = it }, live.overtimeHourLabel(currency))
+                        if (overtimeEnabled) {
+                            SettingsNumberField(ot, { ot = it }, live.overtimeHourLabel(currency))
+                        }
                         SettingsNumberField(
                             deduction,
                             { deduction = it },
@@ -189,6 +192,14 @@ fun FirstSetupScreen(
                         }
                     }
                 }
+
+                SettingsCardDivider()
+                SettingsSwitchRow(
+                    title = live.overtimeEnabled,
+                    hint = live.overtimeEnabledHint,
+                    checked = overtimeEnabled,
+                    onCheckedChange = { overtimeEnabled = it },
+                )
 
                 SettingsCardDivider()
                 SettingsSwitchRow(
@@ -235,6 +246,7 @@ fun FirstSetupScreen(
                         employeeName = name.trim().ifBlank { "NGUYEN VAN A" },
                         employeeNameKana = kana.trim().ifBlank { region.nameReadingExample },
                         salaryEnabled = salaryEnabled,
+                        overtimeEnabled = overtimeEnabled,
                         flagEnabled = flagEnabled,
                         dailyWageYen = wage.toLongOrNull() ?: 0L,
                         overtimeHourYen = ot.toLongOrNull() ?: 0L,
