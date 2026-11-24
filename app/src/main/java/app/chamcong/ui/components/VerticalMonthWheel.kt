@@ -3,17 +3,27 @@ package app.chamcong.ui.components
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -27,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -36,12 +47,8 @@ import app.chamcong.data.SheetLabels
 import app.chamcong.ui.theme.AccentGreen
 import app.chamcong.ui.theme.AccentRed
 import app.chamcong.ui.theme.ChipIdle
-import app.chamcong.ui.theme.SheetInk
 import app.chamcong.ui.theme.SheetLine
 import app.chamcong.ui.theme.SheetMuted
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
@@ -49,11 +56,11 @@ import kotlin.math.abs
 
 private const val WheelCycles = 40
 private val ItemHeight = 44.dp
-private val WheelHeight = 176.dp // ~4 items visible
+private val WheelHeight = 176.dp
 
 /**
- * Vertical looping month picker for fold-open / tablet side rail.
- * Scroll snaps to center; long-press deletes (optional).
+ * Vertical looping month picker for fold-open / tablet.
+ * Delete: nút dưới bánh xe, hoặc nhấn giữ mục đang chọn.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -88,19 +95,22 @@ fun VerticalMonthWheel(
     var pendingDelete by remember { mutableStateOf<MonthKey?>(null) }
     var suppressSelect by remember { mutableStateOf(false) }
 
-    // Keep wheel centered on [selected] when it changes from outside (create/delete/arrows).
     LaunchedEffect(selected, sorted) {
         val target = indexOfMonth(selected)
-        val visible = listState.firstVisibleItemIndex
-        val centerApprox = visible + 1
-        if (sorted.getOrNull(centerApprox % base) != selected) {
+        val info = listState.layoutInfo
+        val viewportCenter = info.viewportStartOffset +
+            (info.viewportEndOffset - info.viewportStartOffset) / 2
+        val centerIdx = info.visibleItemsInfo.minByOrNull { item ->
+            abs((item.offset + item.size / 2) - viewportCenter)
+        }?.index
+        val centeredMonth = centerIdx?.let { sorted[it % base] }
+        if (centeredMonth != selected) {
             suppressSelect = true
             listState.scrollToItem(target)
             suppressSelect = false
         }
     }
 
-    // When user snaps, notify selection.
     LaunchedEffect(listState, sorted) {
         snapshotFlow {
             val info = listState.layoutInfo
@@ -130,75 +140,109 @@ fun VerticalMonthWheel(
         }
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(WheelHeight)
-            .clip(RoundedCornerShape(14.dp))
-            .background(ChipIdle)
-            .border(1.dp, SheetLine, RoundedCornerShape(14.dp)),
-        contentAlignment = Alignment.Center,
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        // Center highlight band
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(ItemHeight)
-                .padding(horizontal = 6.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(AccentGreen.copy(alpha = 0.14f))
-                .border(1.dp, AccentGreen.copy(alpha = 0.35f), RoundedCornerShape(10.dp)),
-        )
-
-        LazyColumn(
-            state = listState,
-            flingBehavior = fling,
-            contentPadding = PaddingValues(vertical = (WheelHeight - ItemHeight) / 2),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.fillMaxWidth(),
+                .height(WheelHeight)
+                .clip(RoundedCornerShape(14.dp))
+                .background(ChipIdle)
+                .border(1.dp, SheetLine, RoundedCornerShape(14.dp)),
+            contentAlignment = Alignment.Center,
         ) {
-            items(count = total, key = { it }) { index ->
-                val month = sorted[index % base]
-                val dist = if (centeredIndex != null) abs(index - centeredIndex!!) else 0
-                val scale = when (dist) {
-                    0 -> 1f
-                    1 -> 0.92f
-                    else -> 0.84f
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(ItemHeight)
+                    .padding(horizontal = 6.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(AccentGreen.copy(alpha = 0.14f))
+                    .border(1.dp, AccentGreen.copy(alpha = 0.35f), RoundedCornerShape(10.dp)),
+            )
+
+            LazyColumn(
+                state = listState,
+                flingBehavior = fling,
+                userScrollEnabled = true,
+                contentPadding = PaddingValues(vertical = (WheelHeight - ItemHeight) / 2),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                items(count = total, key = { it }) { index ->
+                    val month = sorted[index % base]
+                    val dist = if (centeredIndex != null) abs(index - centeredIndex!!) else 0
+                    val scale = when (dist) {
+                        0 -> 1f
+                        1 -> 0.92f
+                        else -> 0.84f
+                    }
+                    val alpha = when (dist) {
+                        0 -> 1f
+                        1 -> 0.55f
+                        else -> 0.32f
+                    }
+                    val active = dist == 0
+                    Text(
+                        text = sheet.tabLabel(month),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(ItemHeight)
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                                this.alpha = alpha
+                            }
+                            .pointerInput(month, active, onDeleteMonth) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        if (onDeleteMonth != null) {
+                                            pendingDelete = month
+                                        }
+                                    },
+                                    onTap = {
+                                        scope.launch {
+                                            listState.animateScrollToItem(index)
+                                        }
+                                        onSelect(month)
+                                    },
+                                )
+                            }
+                            .padding(horizontal = 8.dp, vertical = 10.dp),
+                        textAlign = TextAlign.Center,
+                        color = if (active) AccentGreen else SheetMuted,
+                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = if (active) 16.sp else 14.sp,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
                 }
-                val alpha = when (dist) {
-                    0 -> 1f
-                    1 -> 0.55f
-                    else -> 0.32f
+            }
+        }
+
+        if (onDeleteMonth != null) {
+            TextButton(
+                onClick = { pendingDelete = selected },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = null,
+                        tint = AccentRed,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        text = "$deleteLabel · ${sheet.tabLabel(selected)}",
+                        color = AccentRed,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                    )
                 }
-                val active = dist == 0
-                Text(
-                    text = sheet.tabLabel(month),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(ItemHeight)
-                        .graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
-                            this.alpha = alpha
-                        }
-                        .combinedClickable(
-                            onClick = {
-                                scope.launch {
-                                    listState.animateScrollToItem(index)
-                                }
-                                onSelect(month)
-                            },
-                            onLongClick = {
-                                if (onDeleteMonth != null) pendingDelete = month
-                            },
-                        )
-                        .padding(horizontal = 8.dp, vertical = 10.dp),
-                    textAlign = TextAlign.Center,
-                    color = if (active) AccentGreen else SheetMuted,
-                    fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                    fontSize = if (active) 16.sp else 14.sp,
-                    style = MaterialTheme.typography.labelLarge,
-                )
             }
         }
     }
