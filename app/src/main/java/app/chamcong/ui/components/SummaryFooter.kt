@@ -56,8 +56,11 @@ fun SummaryFooter(
                 value = summary.workDaysText(sheet.workDaysSuffix.trim()),
             )
             if (settings.flagEnabled) {
+                val flagCaption = settings.flagLabelOff.trim()
+                    .ifBlank { settings.flagLabelOn.trim() }
+                    .ifBlank { ui.summaryFlagDays }
                 SummaryStat(
-                    caption = ui.summaryFlagDays,
+                    caption = flagCaption,
                     value = summary.flagDays.toString(),
                 )
             }

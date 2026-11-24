@@ -159,7 +159,7 @@ fun MonthReportScreen(
                 newMonthLabel = ui.newMonth,
                 shareLabel = ui.share,
                 settingsLabel = ui.settings,
-                compact = adaptive.isFoldExpanded,
+                compact = adaptive.isUnfolded,
                 onSave = {
                     Toast.makeText(context, ui.saved, Toast.LENGTH_SHORT).show()
                 },
