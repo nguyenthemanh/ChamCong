@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import app.chamcong.AppLocale
 import app.chamcong.BuildConfig
 import app.chamcong.UpdateChecker
 import app.chamcong.UpdateInstaller
@@ -252,6 +253,7 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
     fun saveSettings(settings: PaySettings) {
         viewModelScope.launch {
             repo.updateSettings(settings)
+            AppLocale.apply(settings.language)
             showSettings.value = false
         }
     }
@@ -259,6 +261,7 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
     fun completeFirstSetup(settings: PaySettings) {
         viewModelScope.launch {
             repo.completeFirstSetup(settings)
+            AppLocale.apply(settings.language)
             startAutoUpdateIfNeeded()
         }
     }

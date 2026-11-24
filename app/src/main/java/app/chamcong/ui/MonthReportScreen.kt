@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.chamcong.AppLocale
 import app.chamcong.data.DayRow
 import app.chamcong.data.MonthKey
 import app.chamcong.data.PaySettings
@@ -84,6 +85,12 @@ fun MonthReportScreen(
 
     SideEffect {
         (context as? Activity)?.title = appNameWithLang
+    }
+
+    LaunchedEffect(state.setupReady, state.settings.language) {
+        if (state.setupReady) {
+            AppLocale.apply(state.settings.language)
+        }
     }
 
     LaunchedEffect(viewModel) {
