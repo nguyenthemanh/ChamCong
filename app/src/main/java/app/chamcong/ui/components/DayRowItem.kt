@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.chamcong.data.DayRow
+import app.chamcong.data.MonthKey
 import app.chamcong.data.PaySettings
 import app.chamcong.data.SheetLabels
 import app.chamcong.ui.theme.ChipActive
@@ -51,9 +52,10 @@ fun DayRowItem(
     settings: PaySettings,
     onChange: (site: String, hasFlag: Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    monthKey: MonthKey? = null,
 ) {
-    var siteText by remember(row.day, row.entry.site) { mutableStateOf(row.entry.site) }
-    var focused by remember { mutableStateOf(false) }
+    var siteText by remember(monthKey, row.day, row.entry.site) { mutableStateOf(row.entry.site) }
+    var focused by remember(monthKey, row.day) { mutableStateOf(false) }
 
     val bg by animateColorAsState(
         targetValue = when {

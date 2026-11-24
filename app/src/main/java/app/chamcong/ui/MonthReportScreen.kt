@@ -59,6 +59,7 @@ import app.chamcong.ui.components.SettingsDialog
 import app.chamcong.ui.components.ShareDialog
 import app.chamcong.ui.components.SummaryFooter
 import app.chamcong.ui.components.SummaryVariant
+import app.chamcong.ui.components.VerticalMonthWheel
 import app.chamcong.ui.i18n.AppStrings
 import app.chamcong.ui.i18n.Strings
 import app.chamcong.ui.theme.AccentGreen
@@ -276,6 +277,7 @@ private fun CoverScreenLayout(
                 settings = state.settings,
                 exporting = state.exporting,
                 onDayChange = onDayChange,
+                monthKey = state.selectedMonth,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -393,15 +395,11 @@ private fun UnfoldedBookLayout(
                 Text(ui.save, color = AccentGreen, fontWeight = FontWeight.Bold)
             }
 
-            MonthTabs(
+            VerticalMonthWheel(
                 months = state.months,
                 selected = state.selectedMonth,
                 sheet = sheet,
                 onSelect = onSelectMonth,
-                onPrev = onPrev,
-                onNext = onNext,
-                prevLabel = ui.prevMonth,
-                nextLabel = ui.nextMonth,
                 deleteLabel = ui.deleteMonth,
                 deleteTitle = ui.deleteMonthConfirmTitle,
                 deleteBody = ui.deleteMonthConfirmBody,
@@ -431,6 +429,7 @@ private fun UnfoldedBookLayout(
             settings = state.settings,
             exporting = state.exporting,
             onDayChange = onDayChange,
+            monthKey = state.selectedMonth,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight(),
@@ -468,6 +467,7 @@ private fun TabletopLayout(
             settings = state.settings,
             exporting = state.exporting,
             onDayChange = onDayChange,
+            monthKey = state.selectedMonth,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
@@ -497,22 +497,20 @@ private fun TabletopLayout(
                 onShare = onShare,
                 onSettings = onSettings,
             )
-            MonthTabs(
+            VerticalMonthWheel(
                 months = state.months,
                 selected = state.selectedMonth,
                 sheet = sheet,
                 onSelect = onSelectMonth,
-                onPrev = onPrev,
-                onNext = onNext,
-                prevLabel = ui.prevMonth,
-                nextLabel = ui.nextMonth,
                 deleteLabel = ui.deleteMonth,
                 deleteTitle = ui.deleteMonthConfirmTitle,
                 deleteBody = ui.deleteMonthConfirmBody,
                 deleteConfirm = ui.deleteMonthConfirm,
                 cancelLabel = ui.cancel,
                 onDeleteMonth = onDeleteMonth,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp),
             )
             UpdateStatusBanner(state.updateStatus)
             SummaryFooter(
@@ -532,7 +530,9 @@ private fun DaysPane(
     exporting: Boolean,
     onDayChange: (Int, String, Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    monthKey: MonthKey? = null,
 ) {
+    val month = monthKey
     Column(modifier = modifier.fillMaxWidth()) {
         TableHeader(
             sheet = sheet,
@@ -545,11 +545,18 @@ private fun DaysPane(
                     .fillMaxSize()
                     .padding(horizontal = 10.dp),
             ) {
-                items(rows, key = { it.day }) { row ->
+                // Include month in key so rows reset when switching months (not reuse day-1..31 state).
+                items(
+                    items = rows,
+                    key = { row ->
+                        if (month != null) "${month.year}-${month.month}-${row.day}" else "d-${row.day}"
+                    },
+                ) { row ->
                     DayRowItem(
                         row = row,
                         sheet = sheet,
                         settings = settings,
+                        monthKey = month,
                         onChange = { site, flag -> onDayChange(row.day, site, flag) },
                     )
                 }

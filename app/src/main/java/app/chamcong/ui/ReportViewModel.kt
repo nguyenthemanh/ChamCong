@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -79,14 +80,22 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
         val updateStatus: String?,
     )
 
+    /**
+     * Pair month + entries in one emission so the header never shows month A
+     * while the day list still has month B's cells (combine race with flatMapLatest).
+     */
+    private val monthWithEntries = selectedMonth.flatMapLatest { month ->
+        repo.entriesFor(month).map { entries -> month to entries }
+    }
+
     val uiState: StateFlow<ReportUiState> = combine(
         combine(
-            selectedMonth,
+            monthWithEntries,
             repo.knownMonths,
-            selectedMonth.flatMapLatest { repo.entriesFor(it) },
             repo.settings,
             repo.setupDone,
-        ) { month, months, entries, settings, setupDone ->
+        ) { monthEntries, months, settings, setupDone ->
+            val (month, entries) = monthEntries
             Core(month, months, entries, settings, setupDone)
         },
         combine(showSettings, showShare, exporting, updateStatus) { s, sh, e, u ->
