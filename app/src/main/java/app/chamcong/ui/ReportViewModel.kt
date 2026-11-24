@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -56,6 +57,8 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = AttendanceRepository(app)
 
     private val selectedMonth = MutableStateFlow(MonthKey.current())
+    /** Optimistic month list while deleting — avoids khung tháng nháy 1 frame. */
+    private val monthsOverride = MutableStateFlow<List<MonthKey>?>(null)
     private val showSettings = MutableStateFlow(false)
     private val showShare = MutableStateFlow(false)
     private val exporting = MutableStateFlow(false)
@@ -92,11 +95,13 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
         combine(
             monthWithEntries,
             repo.knownMonths,
+            monthsOverride,
             repo.settings,
             repo.setupDone,
-        ) { monthEntries, months, settings, setupDone ->
+        ) { monthEntries, months, override, settings, setupDone ->
             val (month, entries) = monthEntries
-            Core(month, months, entries, settings, setupDone)
+            val shown = override ?: months
+            Core(month, shown, entries, settings, setupDone)
         },
         combine(showSettings, showShare, exporting, updateStatus) { s, sh, e, u ->
             Dialogs(s, sh, e, u)
@@ -186,25 +191,26 @@ class ReportViewModel(app: Application) : AndroidViewModel(app) {
 
     fun deleteMonth(month: MonthKey) {
         viewModelScope.launch {
+            val remaining = uiState.value.months.filterNot { it == month }.distinct().sorted()
+            val preview = when {
+                remaining.isEmpty() -> MonthKey.current()
+                else -> remaining.lastOrNull { it < month }
+                    ?: remaining.firstOrNull { it > month }
+                    ?: remaining.last()
+            }
+            val shown = remaining.ifEmpty { listOf(preview) }
+            // List + selected cùng lúc; giữ override đến khi DataStore kịp — hết nháy.
+            monthsOverride.value = shown
+            selectedMonth.value = preview
             runCatching {
-                // Chọn tháng kế trước khi DataStore emit — tránh 1 frame
-                // selected = tháng đã xóa → khung tháng nháy/loạn.
-                val remaining = uiState.value.months.filterNot { it == month }
-                val preview = when {
-                    remaining.isEmpty() -> MonthKey.current()
-                    else -> {
-                        val sorted = remaining.sorted()
-                        sorted.lastOrNull { it < month }
-                            ?: sorted.firstOrNull { it > month }
-                            ?: sorted.last()
-                    }
-                }
-                selectedMonth.value = preview
                 val next = repo.deleteMonth(month)
                 if (next != selectedMonth.value) {
                     selectedMonth.value = next
                 }
+                // Chờ knownMonths không còn tháng đã xóa rồi mới bỏ override
+                repo.knownMonths.first { list -> !list.contains(month) }
             }
+            monthsOverride.value = null
         }
     }
 

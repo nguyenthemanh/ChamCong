@@ -46,10 +46,10 @@ import app.chamcong.ui.theme.AccentRed
 import app.chamcong.ui.theme.ChipIdle
 import app.chamcong.ui.theme.SheetLine
 import app.chamcong.ui.theme.SheetMuted
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.yield
 import kotlin.math.abs
 
 private val ItemHeight = 44.dp
@@ -57,7 +57,7 @@ private val WheelHeight = 176.dp
 
 /**
  * Vertical month picker (fold / tablet).
- * Không remount cả khung khi xóa tháng (tránh nháy loạn lần đầu).
+ * Highlight theo [selected] (không theo center tạm) để không nháy khi xóa tháng.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -128,9 +128,9 @@ private fun MonthSnapList(
     val fling = rememberSnapFlingBehavior(lazyListState = listState)
     val scope = rememberCoroutineScope()
     var suppressSelect by remember { mutableStateOf(false) }
+    val structureKey = sorted.joinToString("|") { "${it.year}-${it.month}" }
 
-    // Đồng bộ vị trí khi đổi selected / danh sách — không destroy LazyColumn
-    LaunchedEffect(safeSelected, sorted) {
+    LaunchedEffect(safeSelected, structureKey) {
         suppressSelect = true
         val target = sorted.indexOf(safeSelected)
         if (target >= 0) {
@@ -139,11 +139,12 @@ private fun MonthSnapList(
                 listState.scrollToItem(target)
             }
         }
-        yield()
+        // Chờ layout ổn sau khi item bị gỡ — tránh onSelect loạn
+        delay(120)
         suppressSelect = false
     }
 
-    LaunchedEffect(listState, sorted, safeSelected) {
+    LaunchedEffect(listState, structureKey) {
         snapshotFlow { centeredIndex(listState) }
             .filter { it != null }
             .distinctUntilChanged()
@@ -188,7 +189,8 @@ private fun MonthSnapList(
                 items = sorted,
                 key = { _, m -> "${m.year}-${m.month}" },
             ) { index, month ->
-                val dist = centerIdx?.let { abs(index - it) } ?: abs(index - initial)
+                val dist = centerIdx?.let { abs(index - it) }
+                    ?: abs(index - initial)
                 val scale = when (dist) {
                     0 -> 1f
                     1 -> 0.92f
@@ -199,7 +201,8 @@ private fun MonthSnapList(
                     1 -> 0.55f
                     else -> 0.32f
                 }
-                val active = dist == 0 || month == safeSelected && centerIdx == null
+                // Highlight theo selected thật — không nhảy theo center tạm khi xóa
+                val active = month == safeSelected
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -210,12 +213,13 @@ private fun MonthSnapList(
                             this.alpha = alpha
                         }
                         .clickable {
+                            onSelect(month)
                             scope.launch {
                                 suppressSelect = true
                                 listState.animateScrollToItem(index)
+                                delay(80)
                                 suppressSelect = false
                             }
-                            onSelect(month)
                         }
                         .padding(horizontal = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
